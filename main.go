@@ -26,7 +26,7 @@ func cleanup() {
 }
 
 func main() {
-	_version = "1.0.0"
+	_version = "1.0.1"
 	user := flag.Bool("user", false, "use username/password")
 	id := flag.String("u", "", "username")
 	pwd := flag.String("p", "", "password")

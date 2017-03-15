@@ -214,15 +214,20 @@ func sqlCMDEvent() string {
 		dayAdd = 1
 	}
 
+	var dur time.Duration
 	next := time.Date(now.Year(), now.Month(), now.Day()+dayAdd, 12, 0, 0, 0, now.Location())
-	dur := next.Sub(now)
+	if dayAdd == 7 {
+		dur = now.Sub(next)
+	} else {
+		dur = next.Sub(now)
+	}
 	min := int(dur.Minutes()) % 60
 	hourText := "hour"
-	if dur.Hours() > 1 {
+	if dur.Hours() > 1 || dur.Hours() < -1 {
 		hourText = "hours"
 	}
 	minText := "minute"
-	if min > 1 {
+	if min > 1 || min < -1 {
 		minText = "minutes"
 	}
 	return fmt.Sprintf("`%0.f %s` and `%d %s` until `Sunday, 12:00 CST`", dur.Hours(), hourText, min, minText)
