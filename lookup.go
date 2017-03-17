@@ -1,44 +1,70 @@
 package main
 
 import (
+	"log"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
 )
 
-func userFind(channel, user string, idLookup bool) string {
+func userFind(channel, user string, idLookup bool) *discordgo.User {
 
 	pos := "" // Position in searching (user ID)
 	var userFull []string
+	var username string
 
 	if idLookup == true {
 		userFull = strings.Split(user, "#")
-		user = userFull[0]
+		username = strings.ToLower(userFull[0])
 	}
 
 	chanStruct, err := dSession.Channel(channel)
 	if err != nil {
 		errLog.Println("Could not get Channel Structure:", err)
-		return ""
+		return nil
 	}
 
 	for {
 		members, err := dSession.GuildMembers(chanStruct.GuildID, pos, 100)
 		if err != nil {
 			discordLog.Println("Could not find user:", err)
-			return ""
+			return nil
 		}
 		for _, m := range members {
-			if m.User.Username == user && m.User.Discriminator == userFull[1] {
-				return m.User.ID
-			} else if m.User.Username == user {
-				return userString(m)
+			if strings.ToLower(m.User.Username) == username && m.User.Discriminator == userFull[1] {
+				return m.User
+				//} else if m.User.Username == user {
+				//	return userString(m)
 			}
 		}
 
 		pos = members[len(members)-1].User.ID
 	}
 
+}
+
+func channelFind(name string) *discordgo.Channel {
+	guilds, err := dSession.UserGuilds()
+	if err != nil {
+		discordLog.Println(err)
+		log.Println("Error getting guilds", err)
+		return nil
+	}
+
+	for _, g := range guilds {
+		channels, err := dSession.GuildChannels(g.ID)
+		if err != nil {
+			discordLog.Println(err)
+			return nil
+		}
+		for _, c := range channels {
+			if strings.ToLower(c.Name) == strings.ToLower(name) {
+				return c
+			}
+		}
+	}
+
+	return nil
 }
 
 func userString(dat *discordgo.Member) string {

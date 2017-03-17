@@ -4,20 +4,11 @@ import (
 	"fmt"
 	"log"
 	"time"
-
-	"github.com/bwmarrin/discordgo"
 )
 
-func sqlCheckPerm(id string, grant bool) bool {
-	query := fmt.Sprintf("SELECT id FROM permissions WHERE id=('%s')", id)
-	qPrep, err := db.Prepare(query)
-	if err != nil {
-		errLog.Println(err)
-		return false
-	}
-
+func sqlCheckPerm(id string) bool {
 	var val string
-	err = qPrep.QueryRow().Scan(&val)
+	err := db.QueryRow("SELECT id FROM permissions WHERE id=(?)", id).Scan(&val)
 	if err != nil {
 		errLog.Println(err)
 		return false
@@ -26,90 +17,92 @@ func sqlCheckPerm(id string, grant bool) bool {
 	return true
 }
 
-func sqlCMDGrant(author *discordgo.User, channel string, input []string) string {
+func sqlCMDGrant(info *inputInfo) string {
 
-	user := fmt.Sprintf("%s#%s", author.Username, author.Discriminator)
-	if input[0] != "grant" || len(input) != 2 {
+	input := info.dat
+	who := info.user
+	whoFull := fmt.Sprintf("%s#%s", who.Username, who.Discriminator)
+
+	if input.length != 1 {
 		discordLog.Println("Could not grant permissions.")
 		return ""
-	} else if sqlCheckPerm(author.ID, true) != true {
-		discordLog.Println(user + "(" + author.ID + ") attempted to grant permissions to " + input[1] + ".")
+	} else if sqlCheckPerm(who.ID) == false {
+		discordLog.Println(whoFull + "(" + who.ID + ") attempted to grant permissions to " + input.args[0] + ".")
 		return ""
+	}
+
+	if info.channelID == "" {
+		info.channelID = info.channel.ID
 	}
 
 	// Find user, get ID
-	addeeID := userFind(channel, input[1], true)
+	addee := userFind(info.channelID, input.args[0], true)
+	addeeID := addee.ID
 	if addeeID == "" {
-		discordLog.Printf("User [%s] not found. Missing discriminator (#000)?\n", input[1])
+		discordLog.Printf("User [%s] not found. Missing discriminator (#000)?\n", input.args[0])
 		return ""
 	}
-	addeeUsername := fmt.Sprintf("%s", input[1])
+	addeeUsername := fmt.Sprintf("%s", input.args[0])
 
-	insertDat := fmt.Sprintf("INSERT INTO permissions (id, username, allow, date_added, accountable) VALUES ('%s', '%s', false, Now(), '%s')",
-		addeeID, addeeUsername, user)
-
-	insPrep, err := db.Prepare(insertDat)
+	_, err := db.Exec("INSERT INTO permissions (id, username, allow, date_added, accountable) VALUES (?, ?, false, Now(), ?)",
+		addeeID, addeeUsername, whoFull)
 	if err != nil {
 		errLog.Println(err)
 	}
 
-	_, err = insPrep.Exec()
-	if err != nil {
-		errLog.Println(err)
-	}
-
-	return fmt.Sprintf("%s granted permissions to use `,add` by %s", addeeUsername, user)
+	return fmt.Sprintf("%s granted permissions to use `,add` by %s", addeeUsername, whoFull)
 }
 
-func sqlCMDAdd(author *discordgo.User, input []string, text string, inputLen int) string {
+func sqlCMDAdd(info *inputInfo) string {
 
-	user := fmt.Sprintf("%s#%s", author.Username, author.Discriminator)
+	input := info.dat
+	who := info.user
+	whoFull := fmt.Sprintf("%s#%s", who.Username, who.Discriminator)
 
-	if input[0] != "add" || len(input) < 3 {
+	if input.length < 2 {
 		discordLog.Println("Bad add request")
 		return ""
-	} else if sqlCheckPerm(author.ID, false) != true {
-		discordLog.Println(user + "(" + author.ID + ") attempted to add a command.")
+	} else if sqlCheckPerm(who.ID) == false {
+		discordLog.Println(whoFull + "(" + who.ID + ") attempted to add a command.")
 		return ""
 	}
 
 	// Check if it exists already
-	existing := sqlCMDSearch(input[1:])
+	existing := sqlCMDSearch(info)
 	if existing != "" {
 		discordLog.Println("Already exists in database")
 		return ""
 	}
 
-	// Make the insert string
-	var added string
 	var err error
+	var added string
 
-	switch inputLen {
+	switch input.length {
 	case 2:
-		_, err = db.Exec("INSERT INTO commands (command, text, author, date_added, author_mod, date_mod) VALUES (?, ?, ?, Now(), ?, Now())", input[1], text, user, user)
-		if len(text) > 40 {
-			added = fmt.Sprintf("[Added: %s] %s -> %s...", user, input[1], text[0:40])
+		_, err = db.Exec("INSERT INTO commands (command, text, author, date_added, author_mod, date_mod) VALUES (?, ?, ?, Now(), ?, Now())", input.args[0], input.text, whoFull, whoFull)
+		if len(input.text) > 40 {
+			added = fmt.Sprintf("[Added: %s] %s -> %s...", whoFull, input.args[0], input.text[0:40])
 		} else {
-			added = fmt.Sprintf("[Added: %s] %s -> %s", user, input[1], text)
+			added = fmt.Sprintf("[Added: %s] %s -> %s", whoFull, input.args[0], input.text)
 		}
 	case 3:
-		if input[1] == "script" {
-			id := sqlScriptSET(input[2], text)
-			_, err = db.Exec("INSERT INTO commands (command, arg1, text, author, date_added, author_mod, date_mod) VALUES (?, ?, ?, ?, Now(), ?, Now())", input[1], input[2], id, user, user)
+		if input.args[0] == "script" {
+			id := sqlScriptSET(input.args[1], input.text)
+			_, err = db.Exec("INSERT INTO commands (command, arg1, text, author, date_added, author_mod, date_mod) VALUES (?, ?, ?, ?, Now(), ?, Now())", input.args[0], input.args[1], id, whoFull, whoFull)
 		} else {
-			_, err = db.Exec("INSERT INTO commands (command, arg1, text, author, date_added, author_mod, date_mod) VALUES (?, ?, ?, ?, Now(), ?, Now())", input[1], input[2], text, user, user)
+			_, err = db.Exec("INSERT INTO commands (command, arg1, text, author, date_added, author_mod, date_mod) VALUES (?, ?, ?, ?, Now(), ?, Now())", input.args[0], input.args[1], input.text, whoFull, whoFull)
 		}
-		if len(text) > 40 {
-			added = fmt.Sprintf("[Added: %s] %s %s -> %s...", user, input[1], input[2], text[0:40])
+		if len(input.text) > 40 {
+			added = fmt.Sprintf("[Added: %s] %s %s -> %s...", whoFull, input.args[0], input.args[1], input.text[0:40])
 		} else {
-			added = fmt.Sprintf("[Added: %s] %s %s -> %s", user, input[1], input[2], text)
+			added = fmt.Sprintf("[Added: %s] %s %s -> %s", whoFull, input.args[0], input.args[1], input.text)
 		}
 	case 4:
-		_, err = db.Exec("INSERT INTO commands (command, arg1, arg2, text, author, date_added, author_mod, date_mod) VALUES (?, ?, ?, ?, ?, Now(), ?, Now())", input[1], input[2], input[3], text, user, user)
-		if len(text) > 40 {
-			added = fmt.Sprintf("[Added: %s] %s %s %s -> %s...", user, input[1], input[2], input[3], text[0:40])
+		_, err = db.Exec("INSERT INTO commands (command, arg1, arg2, text, author, date_added, author_mod, date_mod) VALUES (?, ?, ?, ?, ?, Now(), ?, Now())", input.args[0], input.args[1], input.args[2], input.text, whoFull, whoFull)
+		if len(input.text) > 40 {
+			added = fmt.Sprintf("[Added: %s] %s %s %s -> %s...", whoFull, input.args[0], input.args[1], input.args[2], input.text[0:40])
 		} else {
-			added = fmt.Sprintf("[Added: %s] %s %s %s -> %s", user, input[1], input[2], input[3], text)
+			added = fmt.Sprintf("[Added: %s] %s %s %s -> %s", whoFull, input.args[0], input.args[1], input.args[2], input.text)
 		}
 	default:
 		discordLog.Println("too many inputs.")
@@ -125,65 +118,138 @@ func sqlCMDAdd(author *discordgo.User, input []string, text string, inputLen int
 
 }
 
-func sqlCMDSearch(input []string) string {
+func sqlCMDDel(info *inputInfo) string {
 
+	input := info.dat
+	who := info.user
+	whoFull := fmt.Sprintf("%s#%s", who.Username, who.Discriminator)
+
+	if input.length < 1 {
+		discordLog.Println("Bad delete request")
+		return ""
+	} else if sqlCheckPerm(who.ID) == false {
+		discordLog.Println(whoFull + "(" + who.ID + ") attempted to delete a command.")
+		return ""
+	}
+
+	var deleted string
+	var err error
+	switch input.length {
+	case 1:
+		_, err = db.Exec("DELETE FROM commands WHERE command=(?) AND author=(?)", input.args[0], whoFull)
+		deleted = fmt.Sprintf("[%s deleted]: -> %s", whoFull, input.args[0])
+	case 2:
+		_, err = db.Exec("DELETE FROM commands WHERE command=(?) AND arg1=(?) AND author=(?)", input.args[0], input.args[1], whoFull)
+		deleted = fmt.Sprintf("[%s deleted]: -> %s %s", whoFull, input.args[0], input.args[1])
+	case 3:
+		_, err = db.Exec("DELETE FROM commands WHERE command=(?) AND arg1=(?) AND arg2=(?) AND author=(?)", input.args[0], input.args[1], input.args[0], whoFull)
+		deleted = fmt.Sprintf("[%s deleted]: -> %s %s %s", whoFull, input.args[0], input.args[1], input.args[2])
+	default:
+		discordLog.Println("too many inputs.")
+		return ""
+	}
+
+	if err != nil {
+		errLog.Println(err)
+		return ""
+	}
+
+	return deleted
+}
+
+func sqlCMDMod(info *inputInfo) string {
+
+	input := info.dat
+	who := info.user
+	whoFull := fmt.Sprintf("%s#%s", who.Username, who.Discriminator)
+
+	if input.length < 2 {
+		discordLog.Println("Bad modify request")
+		return ""
+	} else if sqlCheckPerm(who.ID) == false {
+		discordLog.Println(whoFull + "(" + who.ID + ") attempted to modify a command.")
+		return ""
+	}
+
+	var modified string
+	var err error
+	switch input.length {
+	case 2:
+		_, err = db.Exec("UPDATE commands SET text=(?), author_mod=(?), date_mod=Now() WHERE command=(?) AND author=(?)", input.text, whoFull, input.args[0], whoFull)
+		modified = fmt.Sprintf("[%s updated]: -> %s", whoFull, input.args[0])
+	case 3:
+		if input.args[0] == "script" {
+			res := sqlScriptMOD(input.args[1], input.text)
+			if res == false {
+				discordLog.Println("Error updating script.")
+				return ""
+			}
+			_, err = db.Exec("UPDATE commands SET author_mod=(?), date_mod=Now() WHERE command=(?) AND arg1=(?) AND author=(?)", whoFull, input.args[0], input.args[1], whoFull)
+		} else {
+			_, err = db.Exec("UPDATE commands SET text=(?), author_mod=(?), date_mod=Now() WHERE command=(?) AND arg1=(?) AND author=(?)", input.text, whoFull, input.args[0], input.args[1], whoFull)
+		}
+		modified = fmt.Sprintf("[%s updated]: -> %s %s", whoFull, input.args[0], input.args[1])
+	case 4:
+		_, err = db.Exec("UPDATE commands SET text=(?), author_mod=(?), date_mod=Now() WHERE command=(?) AND arg1=(?) AND author=(?)", input.text, whoFull, input.args[0], input.args[1], input.args[2], whoFull)
+		modified = fmt.Sprintf("[%s updated]: -> %s %s %s", whoFull, input.args[0], input.args[1], input.args[2])
+	default:
+		discordLog.Println("too many inputs.")
+		return ""
+	}
+
+	if err != nil {
+		errLog.Println(err)
+		return ""
+	}
+
+	return modified
+}
+
+func sqlCMDSearch(info *inputInfo) string {
+
+	input := info.dat
 	var text, author, date, authorMod, dateMod string
-	var request, query string
+	var request string
 	var err error
 
 	// Change format of the command structure.
-	if input[0] == "info" {
+	if input.command == "info" {
 		request = "author, date_added, author_mod, date_mod"
-
-		switch len(input) {
+		switch input.length {
+		case 1:
+			err = db.QueryRow("SELECT (?) FROM commands WHERE command=(?)", request, input.args[1]).Scan(&author, &date, &authorMod, &dateMod)
 		case 2:
-			query = fmt.Sprintf("SELECT %s FROM commands WHERE command=('%s')", request, input[1])
+			err = db.QueryRow("SELECT (?) FROM commands WHERE command=(?) AND arg1=(?)", request, input.args[1], input.args[2]).Scan(&author, &date, &authorMod, &dateMod)
 		case 3:
-			query = fmt.Sprintf("SELECT %s FROM commands WHERE command=('%s') AND arg1=('%s')", request, input[1], input[2])
-		case 4:
-			query = fmt.Sprintf("SELECT %s FROM commands WHERE command=('%s') AND arg1=('%s') AND arg2=('%s')", request, input[1], input[2], input[3])
+			err = db.QueryRow("SELECT (?) FROM commands WHERE command=(?) AND arg1=(?) AND arg2=(?)", request, input.args[1], input.args[2], input.args[3]).Scan(&author, &date, &authorMod, &dateMod)
 		default:
 			return ""
 		}
 
-		qPrep, err := db.Prepare(query)
-		if err != nil {
-			errLog.Println(err)
-		}
-
-		err = qPrep.QueryRow().Scan(&author, &date, &authorMod, &dateMod)
 		if err != nil {
 			errLog.Println(err)
 			return ""
 		}
 
 		return fmt.Sprintf("Author: %s [%s], Last Modified: %s [%s]", author, date, authorMod, dateMod)
-
 	}
 
-	switch len(input) {
+	switch input.length {
+	case 0:
+		err = db.QueryRow("SELECT text FROM commands WHERE command=(?)", input.command).Scan(&text)
 	case 1:
-		query = fmt.Sprintf("SELECT text FROM commands WHERE command=('%s')", input[0])
+		err = db.QueryRow("SELECT text FROM commands WHERE command=(?) AND arg1=(?)", input.command, input.args[0]).Scan(&text)
 	case 2:
-		query = fmt.Sprintf("SELECT text FROM commands WHERE command=('%s') AND arg1=('%s')", input[0], input[1])
-	case 3:
-		query = fmt.Sprintf("SELECT text FROM commands WHERE command=('%s') AND arg1=('%s') AND arg2=('%s')", input[0], input[1], input[2])
+		err = db.QueryRow("SELECT text FROM commands WHERE command=(?) AND arg1=(?) AND arg2=(?)", input.command, input.args[0], input.args[1]).Scan(&text)
 	default:
 		return ""
 	}
-
-	qPrep, err := db.Prepare(query)
-	if err != nil {
-		errLog.Println(err)
-	}
-
-	err = qPrep.QueryRow().Scan(&text)
 	if err != nil {
 		errLog.Println(err)
 		return ""
 	}
 
-	if input[0] == "script" {
+	if input.command == "script" {
 		return sqlScriptGET(text)
 	}
 
@@ -231,7 +297,72 @@ func sqlCMDEvent() string {
 		minText = "minutes"
 	}
 	return fmt.Sprintf("`%0.f %s` and `%d %s` until `Sunday, 12:00 CST`", dur.Hours(), hourText, min, minText)
+}
 
+func sqlCMDBlacklist(info *inputInfo) string {
+	// Check permisions for Blacklist
+	user := info.user
+	input := info.dat
+	userFull := fmt.Sprintf("%s#%s", user.Username, user.Discriminator)
+	if input.length != 1 {
+		discordLog.Println("Not enough arguments")
+		return ""
+	} else if sqlCheckPerm(user.ID) == false {
+		discordLog.Println(userFull + "(" + user.ID + ") attempted to add a command.")
+		return ""
+	}
+
+	// Check if it exists already
+	var status bool
+	fuckboy := input.args[0]
+	err := db.QueryRow("SELECT status FROM blacklist WHERE name=(?)", fuckboy).Scan(&status)
+	if err != nil && status == false {
+		// Add to table
+		_, err := db.Exec("INSERT INTO blacklist (name, status, times, start_date, who) VALUES (?, true, 1, Now(), ?)", fuckboy, userFull)
+		if err != nil {
+			discordLog.Println("Issue with init blacklisting user")
+			return ""
+		}
+	} else {
+		_, err := db.Exec("UPDATE blacklist SET times = times+1, start_date = Now(), who = (?), status = true WHERE name = (?)", userFull, fuckboy)
+		if err != nil {
+			discordLog.Println("Error updating blacklist")
+			return ""
+		}
+	}
+	return fmt.Sprintf("%s has blacklisted %s. Sucks to suck.", userFull, fuckboy)
+}
+
+func sqlCMDReport(info *inputInfo) string {
+
+	user := info.user
+	input := info.dat
+	userFull := fmt.Sprintf("%s#%s", user.Username, user.Discriminator)
+	fuckboy := input.args[0]
+	var amount int
+
+	if input.length != 1 {
+		discordLog.Println("Not enough arguments")
+		return ""
+	}
+
+	err := db.QueryRow("SELECT times FROM blacklist WHERE name=(?)", fuckboy).Scan(&amount)
+	if err != nil && amount == 0 {
+		// Add to table
+		_, err := db.Exec("INSERT INTO blacklist (name, status, reports) VALUES (?, false, 1)", fuckboy)
+		if err != nil {
+			discordLog.Println("Issue with init blacklisting user")
+			return ""
+		}
+	} else {
+		_, err := db.Exec("UPDATE blacklist SET reports = reports+1 WHERE name = (?)", fuckboy)
+		if err != nil {
+			discordLog.Println("Error updating blacklist")
+			return ""
+		}
+	}
+
+	return fmt.Sprintf("%s has reported %s.", userFull, fuckboy)
 }
 
 func sqlScriptSET(name, text string) string {
@@ -251,10 +382,32 @@ func sqlScriptSET(name, text string) string {
 
 func sqlScriptGET(id string) string {
 	var script string
-	err := db.QueryRow("SELECT script FROM library WHERE (?)", id).Scan(&script)
+	err := db.QueryRow("SELECT script FROM library WHERE id=(?)", id).Scan(&script)
 	if err != nil {
 		errLog.Println(err)
 		return ""
 	}
 	return script
+}
+
+func sqlScriptMOD(name, text string) bool {
+	_, err := db.Exec("UPDATE library SET script=(?) WHERE name=(?)", text, name)
+	if err != nil {
+		errLog.Println(err)
+		return false
+	}
+
+	return true
+}
+
+func sqlBlacklistGET(input string) bool {
+	var status bool
+	err := db.QueryRow("SELECT status FROM blacklist WHERE name=(?)", input).Scan(&status)
+	if err != nil {
+		errLog.Println(err)
+		return false
+	} else if status {
+		return true
+	}
+	return false
 }

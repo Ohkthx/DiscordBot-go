@@ -10,23 +10,41 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
+const _version = "1.1.0"
+
+type inputDat struct {
+	text    string
+	command string
+	args    []string
+	length  int
+}
+
+type inputInfo struct {
+	admin     bool // if user and channel are set- true
+	send      bool // Send data thru channel or send to console.
+	user      *discordgo.User
+	channel   *discordgo.Channel
+	channelID string
+	dat       *inputDat
+}
+
 var (
-	_version   string
 	db         *sql.DB            // SQL database - global
 	dSession   *discordgo.Session // Discord session - global
-	discordLog *log.Logger        // Logs Discord request actions - global
-	errLog     *log.Logger        // Logs Err information such as SQL - global
+	dUser      *discordgo.User
+	discordLog *log.Logger // Logs Discord request actions - global
+	errLog     *log.Logger // Logs Err information such as SQL - global
 )
 
 func cleanup() {
 	fmt.Println("Cleaning up...")
 	dSession.Close()
 	db.Close()
+	fmt.Println("Terminating.")
 	os.Exit(0)
 }
 
 func main() {
-	_version = "1.0.1"
 	user := flag.Bool("user", false, "use username/password")
 	id := flag.String("u", "", "username")
 	pwd := flag.String("p", "", "password")
@@ -34,15 +52,22 @@ func main() {
 	debug := flag.Bool("debug", false, "enable debug mode")
 	flag.Parse()
 
+	var err error
 	dSession = setup(*debug, *user, *id, *pwd, *token)
 
 	// Register messageCreate as a callback for the messageCreate events.
 	dSession.AddHandler(messageHandler)
 
-	// Open the websocket and begin listening.
-	err := dSession.Open()
+	dUser, err = dSession.User("@me")
 	if err != nil {
-		errLog.Fatal("Error discrod opening connection:", err)
+		discordLog.Println("Error obtaining account details:", err)
+		return
+	}
+
+	// Open the websocket and begin listening.
+	err = dSession.Open()
+	if err != nil {
+		errLog.Fatal("Error discord opening connection:", err)
 		return
 	}
 

@@ -1,2 +1,25 @@
+1.1.0 - Console additions:
+            "channel" - lookups a channel.
+            "admin"   - sets the admin user.
+                        Requires channel set.
+            "msg"     - send messages on via bot to channel.
+                        Requires channel set.
+            "version" - returns running version
+            "status"  - prints channel/admin status 
+            "send"    - switch output between sending to console or discord.
+            Case-insentive console input added.
+            Ability to direct input to console or channel.
+            All Discord commands accessible via console.
+        Discord additions:
+            "report"    - reports a player, increments reports in SQL
+            "blacklist" - revokes abilities to use discord bot
+            "del"       - deletes a command
+            "mod"       - modifies a command
+        Bug Fixes:
+            - Script lookup. Was returning the same script. Bad SQL query.
+            - Attempt at accessing slices of a null array -> crashes
+            - Message handling of empty text crashing bot.
+            - Automatic restarting bot after exit/crash.
+        Reorganized input parsing.
 1.0.1 - ",event" command fixes.
 1.0.0 - initial release
