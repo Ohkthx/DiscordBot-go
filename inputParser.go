@@ -15,10 +15,13 @@ func inputParser(info *inputInfo) string {
 	case "grant":
 		sndmsg = sqlCMDGrant(info)
 	case "add":
+		info.dat.modifier = true
 		sndmsg = sqlCMDAdd(info)
 	case "del":
+		info.dat.modifier = true
 		sndmsg = sqlCMDDel(info)
 	case "mod":
+		info.dat.modifier = true
 		sndmsg = sqlCMDMod(info)
 	case "blacklist":
 		sndmsg = sqlCMDBlacklist(info)
@@ -27,7 +30,7 @@ func inputParser(info *inputInfo) string {
 	case "version":
 		sndmsg = fmt.Sprintf("version: `%s`", _version)
 	default:
-		sndmsg = sqlCMDSearch(info)
+		sndmsg = sqlCMDSearch(info.dat, info.dat.length+1)
 	}
 
 	return sndmsg
@@ -70,5 +73,12 @@ func inputText(input string) *inputDat {
 	}
 
 	return &iodat
+
+}
+
+func cmdconv(info *inputDat) []string {
+
+	str := fmt.Sprintf("%s %s", info.command, strings.Join(info.args, " "))
+	return strings.Split(str, " ")
 
 }

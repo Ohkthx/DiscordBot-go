@@ -7,15 +7,17 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-func userFind(channel, user string, idLookup bool) *discordgo.User {
+func userFind(channel, user string) *discordgo.User {
 
 	pos := "" // Position in searching (user ID)
 	var userFull []string
 	var username string
 
-	if idLookup == true {
-		userFull = strings.Split(user, "#")
-		username = strings.ToLower(userFull[0])
+	userFull = strings.Split(user, "#")
+	username = strings.ToLower(userFull[0])
+
+	if len(userFull) != 2 {
+		return nil
 	}
 
 	chanStruct, err := dSession.Channel(channel)

@@ -19,5 +19,5 @@ This wouldn't have been possible for me to do without contributors of the projec
 + Help/Usage
 
 #### Versions
-+ 1.0.1 - ,event command fix.
-+ 1.0.0 - initial commit, working base.
+Current: v1.1.1
+See changelog

@@ -35,8 +35,6 @@ func ioHandler(info *inputInfo) {
 	user := info.user
 	channel := info.channel
 
-	fmt.Printf("%d is the length of input\n", input.length)
-
 	switch input.command {
 	case "user":
 		fallthrough
@@ -45,7 +43,7 @@ func ioHandler(info *inputInfo) {
 			log.Println("Set channel first.")
 			break
 		}
-		user = userFind(channel.ID, input.args[0], true)
+		user = userFind(channel.ID, input.args[0])
 		if user == nil {
 			log.Println("Bad user  => ", input.args[0])
 			break

@@ -10,13 +10,14 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-const _version = "1.1.0"
+const _version = "1.1.1"
 
 type inputDat struct {
-	text    string
-	command string
-	args    []string
-	length  int
+	text     string
+	command  string
+	args     []string
+	length   int
+	modifier bool // If it is an "Add/Mod/Del" command
 }
 
 type inputInfo struct {
@@ -40,7 +41,7 @@ func cleanup() {
 	fmt.Println("Cleaning up...")
 	dSession.Close()
 	db.Close()
-	fmt.Println("Terminating.")
+	fmt.Println("Terminated.")
 	os.Exit(0)
 }
 
