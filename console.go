@@ -34,6 +34,7 @@ func ioHandler(info *inputInfo) {
 	input := info.dat
 	user := info.user
 	channel := info.channel
+	var err error
 
 	switch input.command {
 	case "user":
@@ -43,18 +44,18 @@ func ioHandler(info *inputInfo) {
 			log.Println("Set channel first.")
 			break
 		}
-		user = userFind(channel.ID, input.args[0])
-		if user == nil {
-			log.Println("Bad user  => ", input.args[0])
+		user, err = userFind(channel.ID, input.args[0])
+		if err != nil {
+			log.Println(err)
 			break
 		}
 		info.admin = true
 		info.user = user
 
 	case "channel":
-		channel = channelFind(input.args[0])
-		if channel == nil {
-			log.Println("Bad channel  => ", input.args[0])
+		channel, err = channelFind(input.args[0])
+		if err != nil {
+			log.Println(err)
 			break
 		}
 		info.channel = channel
@@ -65,13 +66,32 @@ func ioHandler(info *inputInfo) {
 			break
 		}
 		_, _ = dSession.ChannelMessageSend(channel.ID, strings.Join(input.args, " "))
+	case "privmsg":
+		if input.length < 2 || input.text == "" {
+			log.Println("Bad privmsg")
+			break
+		}
+		recep, err := userFind(channel.ID, input.args[0])
+		if err != nil {
+			log.Println(err)
+			break
+		}
+		c, _ := dSession.UserChannelCreate(recep.ID)
+		_, _ = dSession.ChannelMessageSend(c.ID, strings.Join(input.args[1:], " "))
+	case "pmc":
+		c, _ := dSession.UserChannels()
+		for k, p := range c {
+			fmt.Printf("%d) %s\n", k, p.Name)
+		}
 
 	default:
 		if info.admin == true {
+			text, _ := inputParser(info)
 			if info.send {
-				_, _ = dSession.ChannelMessageSend(info.channel.ID, inputParser(info))
+
+				_, _ = dSession.ChannelMessageSend(info.channel.ID, text)
 			} else {
-				log.Println(inputParser(info))
+				log.Println(text)
 			}
 			break
 		} else if channel != nil && user != nil {

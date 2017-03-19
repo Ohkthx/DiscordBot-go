@@ -1,40 +1,42 @@
 package main
 
 import (
-	"log"
+	"errors"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
 )
 
-func userFind(channel, user string) *discordgo.User {
-
+func userFind(channel, user string) (*discordgo.User, error) {
 	pos := "" // Position in searching (user ID)
 	var userFull []string
 	var username string
+	var err error
 
 	userFull = strings.Split(user, "#")
 	username = strings.ToLower(userFull[0])
 
 	if len(userFull) != 2 {
-		return nil
+		err = errors.New("bad user supplied. User format: username#1234 ")
+		return nil, err
 	}
 
 	chanStruct, err := dSession.Channel(channel)
 	if err != nil {
-		errLog.Println("Could not get Channel Structure:", err)
-		return nil
+		errLog.Println("could not get channel structure:", err)
+		err = errors.New("could not obtain channels")
+		return nil, err
 	}
 
 	for {
 		members, err := dSession.GuildMembers(chanStruct.GuildID, pos, 100)
 		if err != nil {
-			discordLog.Println("Could not find user:", err)
-			return nil
+			err = errors.New("could not obtain user list")
+			return nil, err
 		}
 		for _, m := range members {
 			if strings.ToLower(m.User.Username) == username && m.User.Discriminator == userFull[1] {
-				return m.User
+				return m.User, nil
 				//} else if m.User.Username == user {
 				//	return userString(m)
 			}
@@ -42,31 +44,32 @@ func userFind(channel, user string) *discordgo.User {
 
 		pos = members[len(members)-1].User.ID
 	}
-
 }
 
-func channelFind(name string) *discordgo.Channel {
+func channelFind(name string) (*discordgo.Channel, error) {
 	guilds, err := dSession.UserGuilds()
 	if err != nil {
-		discordLog.Println(err)
-		log.Println("Error getting guilds", err)
-		return nil
+		errLog.Println("error getting guilds", err)
+		err = errors.New("could not get server info")
+		return nil, err
 	}
 
 	for _, g := range guilds {
 		channels, err := dSession.GuildChannels(g.ID)
 		if err != nil {
-			discordLog.Println(err)
-			return nil
+			errLog.Println("error getting guild channels", err)
+			err = errors.New("error getting rooms")
+			return nil, err
 		}
 		for _, c := range channels {
 			if strings.ToLower(c.Name) == strings.ToLower(name) {
-				return c
+				return c, nil
 			}
 		}
 	}
 
-	return nil
+	err = errors.New("no channels found")
+	return nil, err
 }
 
 func userString(dat *discordgo.Member) string {

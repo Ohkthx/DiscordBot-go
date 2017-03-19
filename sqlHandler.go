@@ -2,88 +2,99 @@ package main
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 	"time"
 )
 
+// Check the permissions of a USER by ID to verify if they
+// are allowed to manipulate other tables.
 func sqlCheckPerm(id string) bool {
-	var val string
+	var val sql.NullString
+	// Grab ID from table (sure indicator that it is a valid person)
 	err := db.QueryRow("SELECT id FROM permissions WHERE id=(?)", id).Scan(&val)
 	if err != nil {
-		errLog.Println(err)
+		errLog.Println("checking permissions", err)
 		return false
+		// If information is not NULL
+	} else if val.Valid {
+		return true
 	}
 
-	return true
+	return false
 }
 
-func sqlCMDGrant(info *inputInfo) string {
-
+// Grants the person the ability to manipulate tables.
+// Potentially very dangerous to do!
+func sqlCMDGrant(info *inputInfo) (string, error) {
 	input := info.dat
 	who := info.user
 	whoFull := fmt.Sprintf("%s#%s", who.Username, who.Discriminator)
-
-	if input.length != 1 {
-		discordLog.Println("Could not grant permissions.")
-		return ""
-	} else if sqlCheckPerm(who.ID) == false {
-		discordLog.Println(whoFull + "(" + who.ID + ") attempted to grant permissions to " + input.args[0] + ".")
-		return ""
-	}
-
-	if info.channelID == "" {
-		info.channelID = info.channel.ID
-	}
-
-	// Find user, get ID
-	addee := userFind(info.channelID, input.args[0])
-	if addee == nil {
-		discordLog.Println("Bad user")
-		return ""
-	}
-	addeeID := addee.ID
-	if addeeID == "" {
-		discordLog.Printf("User [%s] not found. Missing discriminator (#000)?\n", input.args[0])
-		return ""
-	}
-	addeeUsername := fmt.Sprintf("%s", input.args[0])
-
-	_, err := db.Exec("INSERT INTO permissions (id, username, allow, date_added, accountable) VALUES (?, ?, false, Now(), ?)",
-		addeeID, addeeUsername, whoFull)
-	if err != nil {
-		errLog.Println(err)
-	}
-
-	return fmt.Sprintf("%s granted permissions to use `,add` by %s", addeeUsername, whoFull)
-}
-
-func sqlCMDAdd(info *inputInfo) string {
-
-	input := info.dat
-	who := info.user
-	whoFull := fmt.Sprintf("%s#%s", who.Username, who.Discriminator)
-
-	if input.length < 2 {
-		discordLog.Println("Bad add request")
-		return ""
-	} else if sqlCheckPerm(who.ID) == false {
-		discordLog.Println(whoFull + "(" + who.ID + ") attempted to add a command.")
-		return ""
-	}
-
-	// Check if it exists already
-	existing := sqlCMDSearch(input, input.length-1)
-	if existing != "" {
-		discordLog.Println("Already exists in database")
-		return ""
-	}
-
 	var err error
+
+	// Check length, minimum request is: grant [username]
+	if input.length != 1 {
+		err = errors.New("not enough arguments. Want: grant [username#1234]")
+		return "", err
+	} else if sqlCheckPerm(who.ID) == false {
+		err = errors.New("you do not have permissions to do that")
+		return "", err
+	}
+
+	if info.channel.ID == "" {
+		err = errors.New("unexpected channel error while granting permissions")
+		return "", err
+	}
+
+	// Find user, get ID. Return on bad ID
+	addee, err := userFind(info.channel.ID, input.args[0])
+	if err != nil {
+		return "", err
+	}
+
+	addeeFull := fmt.Sprintf("%s#%s", addee.Username, addee.Discriminator)
+
+	// Make SQL request to grant user ability to manipulate others.
+	_, err = db.Exec("INSERT INTO permissions (id, username, allow, date_added, accountable) VALUES (?, ?, false, Now(), ?)",
+		addee.ID, addeeFull, whoFull)
+	if err != nil {
+		errLog.Printf("Error inserting [%s] into database for Grant permissions.\n", addeeFull)
+		err = errors.New("could not grant permissions")
+		return "", err
+	}
+
+	return fmt.Sprintf("%s granted permissions to use `,add` by %s", addeeFull, whoFull), nil
+}
+
+// Add commands to selected tables
+// Requires Granted permissions.
+func sqlCMDAdd(info *inputInfo) (string, error) {
+	input := info.dat
+	who := info.user
+	whoFull := fmt.Sprintf("%s#%s", who.Username, who.Discriminator)
+	var err error
+
+	// Minimum length 2:  [command] [text]
+	if input.length < 2 {
+		err = errors.New("not enough arguments. Require at least a command and text")
+		return "", err
+	} else if sqlCheckPerm(who.ID) == false {
+		err = errors.New("you do not have permissions to do that")
+		return "", err
+	}
+
+	// Check if request already exists.
+	_, err = sqlCMDSearch(input, input.length-1)
+	if err == nil {
+		err = errors.New("command already exists. Did you mean to modify?")
+		return "", err
+	}
+
 	var added string
 
+	// Make inserts into tables.
 	switch input.length {
 	case 2:
 		_, err = db.Exec("INSERT INTO commands (command, text, author, date_added, author_mod, date_mod) VALUES (?, ?, ?, Now(), ?, Now())", input.args[0], input.text, whoFull, whoFull)
@@ -93,7 +104,7 @@ func sqlCMDAdd(info *inputInfo) string {
 			added = fmt.Sprintf("[Added: %s] %s -> %s", whoFull, input.args[0], input.text)
 		}
 	case 3:
-		if input.args[0] == "script" || input.args[0] == "event" {
+		if input.attr&cmdEVENT == cmdEVENT || input.attr&cmdSCRIPT == cmdSCRIPT {
 			return sqlProxyAdd(info)
 		}
 		_, err = db.Exec("INSERT INTO commands (command, arg1, text, author, date_added, author_mod, date_mod) VALUES (?, ?, ?, ?, Now(), ?, Now())", input.args[0], input.args[1], input.text, whoFull, whoFull)
@@ -110,48 +121,53 @@ func sqlCMDAdd(info *inputInfo) string {
 			added = fmt.Sprintf("[Added: %s] %s %s %s -> %s", whoFull, input.args[0], input.args[1], input.args[2], input.text)
 		}
 	default:
-		discordLog.Println("too many inputs.")
-		return ""
+		err = errors.New("too many arguments")
+		return "", err
 	}
 
+	// Handle any issues with inserting data.
 	if err != nil {
-		errLog.Println(err)
-		return ""
+		errLog.Println("Issues adding commands", err)
+		err = errors.New("unexpected issue adding commands")
+		return "", err
 	}
 
-	return added
-
+	return added, nil
 }
 
-func sqlCMDDel(info *inputInfo) string {
-
+// Delete commands from selected tables
+// Requires Granted permissions.
+func sqlCMDDel(info *inputInfo) (string, error) {
 	input := info.dat
 	who := info.user
 	whoFull := fmt.Sprintf("%s#%s", who.Username, who.Discriminator)
+	var err error
 
+	// Requires an input of at least 1.
 	if input.length < 1 {
-		discordLog.Println("Bad delete request")
-		return ""
+		err = errors.New("not enough arguments to delete")
+		return "", err
 	} else if sqlCheckPerm(who.ID) == false {
-		discordLog.Println(whoFull + "(" + who.ID + ") attempted to delete a command.")
-		return ""
+		err = errors.New("you do not have permissions to do that")
+		return "", err
 	}
 
 	// Check if it exists already
-	existing := sqlCMDSearch(input, input.length)
-	if existing == "" {
-		discordLog.Println("Command doesn't exist")
-		return ""
+	_, err = sqlCMDSearch(input, input.length)
+	if err != nil {
+		err = errors.New("that command does not exist")
+		return "", err
 	}
 
 	var deleted string
-	var err error
+
+	// Perform deletion.
 	switch input.length {
 	case 1:
 		_, err = db.Exec("DELETE FROM commands WHERE command=(?) AND arg1 IS NULL AND author=(?)", input.args[0], whoFull)
 		deleted = fmt.Sprintf("[%s deleted]: -> %s", whoFull, input.args[0])
 	case 2:
-		if input.args[0] == "script" || input.args[0] == "event" {
+		if input.attr&cmdEVENT == cmdEVENT || input.attr&cmdSCRIPT == cmdSCRIPT {
 			return sqlProxyDel(info)
 		}
 		_, err = db.Exec("DELETE FROM commands WHERE command=(?) AND arg1=(?) AND arg2 IS NULL AND author=(?)", input.args[0], input.args[1], whoFull)
@@ -160,47 +176,50 @@ func sqlCMDDel(info *inputInfo) string {
 		_, err = db.Exec("DELETE FROM commands WHERE command=(?) AND arg1=(?) AND arg2=(?) AND author=(?)", input.args[0], input.args[1], input.args[0], whoFull)
 		deleted = fmt.Sprintf("[%s deleted]: -> %s %s %s", whoFull, input.args[0], input.args[1], input.args[2])
 	default:
-		discordLog.Println("too many inputs.")
-		return ""
+		err = errors.New("too many arguments")
+		return "", err
 	}
 
 	if err != nil {
-		errLog.Println(err)
-		return ""
+		errLog.Println("Issues deleting commands", err)
+		err = errors.New("unexpected issue deleting commands")
+		return "", err
 	}
 
-	return deleted
+	return deleted, nil
 }
 
-func sqlCMDMod(info *inputInfo) string {
-
+// Modify and existing command
+// Requires Granted permissions.
+func sqlCMDMod(info *inputInfo) (string, error) {
 	input := info.dat
 	who := info.user
 	whoFull := fmt.Sprintf("%s#%s", who.Username, who.Discriminator)
+	var err error
 
+	// Minimum of 2 commands required.
 	if input.length < 2 {
-		discordLog.Println("Bad modify request")
-		return ""
+		err = errors.New("not enough arguments. want: [mod] [command(s)] [text]")
+		return "", err
 	} else if sqlCheckPerm(who.ID) == false {
-		discordLog.Println(whoFull + "(" + who.ID + ") attempted to modify a command.")
-		return ""
+		err = errors.New("you do not have permissions to do that")
+		return "", err
 	}
 
 	// Check if it exists already
-	existing := sqlCMDSearch(input, input.length-1)
-	if existing == "" {
-		discordLog.Println("Doesn't exist in database")
-		return ""
+	_, err = sqlCMDSearch(input, input.length-1)
+	if err != nil {
+		err = errors.New("that command does not exist")
+		return "", err
 	}
 
 	var modified string
-	var err error
 	switch input.length {
 	case 2:
 		_, err = db.Exec("UPDATE commands SET text=(?), author_mod=(?), date_mod=Now() WHERE command=(?) arg1 IS NULL AND author=(?)", input.text, whoFull, input.args[0], whoFull)
 		modified = fmt.Sprintf("[%s updated]: -> %s", whoFull, input.args[0])
 	case 3:
-		if input.args[0] == "script" || input.args[0] == "event" {
+		if input.attr&cmdEVENT == cmdEVENT || input.attr&cmdSCRIPT == cmdSCRIPT {
 			return sqlProxyMod(info)
 		}
 		_, err = db.Exec("UPDATE commands SET text=(?), author_mod=(?), date_mod=Now() WHERE command=(?) AND arg1=(?) AND arg2 IS NULL AND author=(?)", input.text, whoFull, input.args[0], input.args[1], whoFull)
@@ -209,32 +228,28 @@ func sqlCMDMod(info *inputInfo) string {
 		_, err = db.Exec("UPDATE commands SET text=(?), author_mod=(?), date_mod=Now() WHERE command=(?) AND arg1=(?) AND author=(?)", input.text, whoFull, input.args[0], input.args[1], input.args[2], whoFull)
 		modified = fmt.Sprintf("[%s updated]: -> %s %s %s", whoFull, input.args[0], input.args[1], input.args[2])
 	default:
-		discordLog.Println("too many inputs.")
-		return ""
+		errLog.Println("too many arguments.")
+		return "", err
 	}
 
 	if err != nil {
-		errLog.Println(err)
-		return ""
+		errLog.Println("Issues modifying commands", err)
+		err = errors.New("unexpected issue modifying commands")
+		return "", err
 	}
 
-	return modified
+	return modified, nil
 }
 
-func sqlCMDSearch(input *inputDat, length int) string {
-
+// Attempt to find and return a command.
+func sqlCMDSearch(input *inputDat, length int) (string, error) {
 	var err error
-	var text string
+	var text sql.NullString
 	i := input.args
 
-	// Change format of the command structure.
-
-	if input.command == "script" {
-		text, _ := sqlProxyLinkGET(input.args[0], text)
-		return text
-	} else if input.command == "help" {
+	if input.command == "help" {
 		return sqlCMDHelp(input.args)
-	} else if input.modifier != true {
+	} else if modifierSet(input) == false {
 		i = cmdconv(input)
 	}
 
@@ -246,20 +261,38 @@ func sqlCMDSearch(input *inputDat, length int) string {
 	case 3:
 		err = db.QueryRow("SELECT text FROM commands WHERE command=(?) AND arg1=(?) AND arg2=(?)", i[0], i[1], i[2]).Scan(&text)
 	default:
-		return ""
+		err = errors.New("too many arguments")
+		return "", err
 	}
 	if err != nil {
-		errLog.Println(err)
-		return ""
+		if err == sql.ErrNoRows {
+			err = errors.New("command not found")
+			return "", err
+		}
+		errLog.Println("searching table", err)
+		err = errors.New("issue looking up command")
+		return "", err
 	}
 
-	return text
+	if input.command == "script" {
+		text, err := sqlProxyLinkGET(input.command, text.String)
+		return text[0], err
+	}
+
+	if text.Valid {
+		return text.String, nil
+	}
+	err = errors.New("invalid command")
+	return "", err
 }
 
-func sqlCMDEvent() string {
+// Compares current time to that which is stored and returns
+// the result for all that are described in the table.
+func sqlCMDEvent() (string, error) {
 
 	var weekday, hhmmFull, retText string
 	var hh, mm, cnt int
+	var err error
 
 	now := time.Now()
 	retText = "Events Coming Soon\n```"
@@ -267,7 +300,8 @@ func sqlCMDEvent() string {
 	rows, err := db.Query("SELECT weekday, time FROM events")
 	if err != nil {
 		errLog.Println("Event lookup (getting rows): ", err)
-		return ""
+		err = errors.New("could not get events")
+		return "", err
 	}
 	defer rows.Close()
 
@@ -275,18 +309,21 @@ func sqlCMDEvent() string {
 		err := rows.Scan(&weekday, &hhmmFull)
 		if err != nil {
 			errLog.Println("Event lookup (proc rows): ", err)
-			return ""
+			err = errors.New("no events found?")
+			return "", err
 		}
 		hhmm := strings.Split(hhmmFull, ":")
 		hh, err = strconv.Atoi(hhmm[0])
 		if err != nil {
-			errLog.Println("Event hour conv: ", err)
-			return ""
+			errLog.Println("event hour conv: ", err)
+			err = errors.New("could not convert hours")
+			return "", err
 		}
 		mm, err = strconv.Atoi(hhmm[1])
 		if err != nil {
-			errLog.Println("Event min conv: ", err)
-			return ""
+			errLog.Println("event min conv: ", err)
+			err = errors.New("could not conver minutes")
+			return "", err
 		}
 		// DO SOME STUFF WITH EVENT
 		var num int
@@ -330,7 +367,7 @@ func sqlCMDEvent() string {
 		if min > 1 || min < -1 {
 			minText = "minutes"
 		}
-		event := fmt.Sprintf("%2d)  %d %s %d %s ->  %8s - %s CST\n", cnt, hour, hourText, min, minText, next.Weekday().String(), next.Format("15:04"))
+		event := fmt.Sprintf("%2d)  %2d %5s %2d %7s ->  %8s - %s CST\n", cnt, hour, hourText, min, minText, next.Weekday().String(), next.Format("15:04"))
 		retText += event
 
 		// END SOME STUFF
@@ -338,28 +375,32 @@ func sqlCMDEvent() string {
 	err = rows.Err()
 	if err != nil {
 		errLog.Println("Event lookup (unknown): ", err)
-		return "No events set."
+		err = errors.New("no events found? (unknown)")
+		return "", err
 	}
+
+	if cnt < 1 {
+		return "`No events found.`", nil
+	}
+
 	retText = strings.Trim(retText, " \n")
-	return retText + "```check #events"
+	return retText + "```check #events", nil
 }
 
-func sqlCMDHelp(input []string) string {
+// Looks up a command returns all other commands with the same base
+func sqlCMDHelp(input []string) (string, error) {
 	var retStr string
 	var arg0, arg1, arg2 sql.NullString
+	var err error
 
-	cnt := 1
+	cnt := 0
 	retStr = fmt.Sprintf("%s help: ```\n", input[0])
-
-	//
-	if input[0] != "vendor" {
-		return ""
-	}
 
 	rows, err := db.Query("SELECT command, arg1, arg2 FROM commands WHERE command=(?)", input[0])
 	if err != nil {
 		errLog.Printf("%s lookup (getting rows): %s", input[0], err)
-		return ""
+		err = errors.New("could not retrieve information")
+		return "", err
 	}
 	defer rows.Close()
 
@@ -368,9 +409,10 @@ func sqlCMDHelp(input []string) string {
 		err := rows.Scan(&arg0, &arg1, &arg2)
 		if err != nil {
 			errLog.Printf("%s lookup (proc rows): %s", input[0], err)
-			return ""
+			err = errors.New("issue processing information")
+			return "", err
 		}
-
+		cnt++
 		if arg0.Valid {
 			str0 = arg0.String
 		}
@@ -384,157 +426,216 @@ func sqlCMDHelp(input []string) string {
 		}
 
 		retStr += fmt.Sprintf("%2d: %s %s %s\n", cnt, str0, str1, str2)
-		cnt++
+
 	}
 	err = rows.Err()
 	if err != nil {
 		errLog.Printf("%s lookup (unknown): %s", input[0], err)
-		return "No help :'("
+		err = errors.New("unknown issue")
+		return "No help :'(", err
 	}
 
+	// Prevent returning ugly text.
+	if cnt < 1 {
+		return "No help for you. :'(", nil
+	}
 	retText := strings.Trim(retStr, " \n")
-	return retText + "```"
+	return retText + "```", nil
 }
 
-func sqlProxyAdd(info *inputInfo) string {
+// Add a to main table and adds to the linked table.
+func sqlProxyAdd(info *inputInfo) (string, error) {
 	input := info.dat
 	who := info.user
 	whoFull := fmt.Sprintf("%s#%s", who.Username, who.Discriminator)
+	var err error
 
-	id := sqlProxyLinkSET(input.args, input.text)
-	if id == "" {
-		errLog.Println("Bad ID returned.")
-		return ""
+	/*
+		Could add additional error checking here to see if exist.
+		All calling functions already make this check tho.
+	*/
+
+	id, err := sqlProxyLinkSET(input.args, input.text)
+	if err != nil {
+		return "", err
 	}
 
-	_, err := db.Exec("INSERT INTO commands (command, arg1, text, author, date_added, author_mod, date_mod) VALUES (?, ?, ?, ?, Now(), ?, Now())", input.args[0], input.args[1], id, whoFull, whoFull)
+	_, err = db.Exec("INSERT INTO commands (command, arg1, text, author, date_added, author_mod, date_mod) VALUES (?, ?, ?, ?, Now(), ?, Now())", input.args[0], input.args[1], id, whoFull, whoFull)
 	if err != nil {
-		errLog.Println("Unable to add parent db", err)
-		return ""
+		errLog.Println("adding with proxy", err)
+		err = errors.New("unable to add command")
+		return "", err
 	}
 
 	if len(input.text) > 40 {
-		return fmt.Sprintf("[Added: %s] %s %s -> %s...", whoFull, input.args[0], input.args[1], input.text[0:40])
+		return fmt.Sprintf("[Added: %s] %s %s -> %s...", whoFull, input.args[0], input.args[1], input.text[0:10]), nil
 	}
-	return fmt.Sprintf("[Added: %s] %s %s -> %s", whoFull, input.args[0], input.args[1], input.text)
+	return fmt.Sprintf("[Added: %s] %s %s -> %s", whoFull, input.args[0], input.args[1], input.text), nil
 }
 
-func sqlProxyMod(info *inputInfo) string {
+// Modifies the main table with updates to the linked table as well.
+func sqlProxyMod(info *inputInfo) (string, error) {
 	input := info.dat
 	who := info.user
 	whoFull := fmt.Sprintf("%s#%s", who.Username, who.Discriminator)
+	var err error
 
-	success := sqlProxyLinkMOD(input.args)
-	if success != true {
-		return ""
-	}
+	/*
+		Could add additional error checking here to see if exist.
+		All calling functions already make this check tho.
+	*/
 
-	_, err := db.Exec("UPDATE commands SET text=(?), author_mod=(?), date_mod=Now() WHERE command=(?) AND arg1=(?) AND arg2 IS NULL AND author=(?)", input.text, whoFull, input.args[0], input.args[1], whoFull)
+	err = sqlProxyLinkMOD(input.args)
 	if err != nil {
-		return ""
+		return "", err
 	}
 
-	return fmt.Sprintf("[%s updated]: -> %s %s", whoFull, input.args[0], input.args[1])
+	// Perform updating of the main table
+	_, err = db.Exec("UPDATE commands SET text=(?), author_mod=(?), date_mod=Now() WHERE command=(?) AND arg1=(?) AND arg2 IS NULL AND author=(?)", input.text, whoFull, input.args[0], input.args[1], whoFull)
+	if err != nil {
+		errLog.Println("modifying with proxy", err)
+		err = errors.New("unable to modify command")
+		return "", err
+	}
+
+	return fmt.Sprintf("[%s updated]: -> %s %s", whoFull, input.args[0], input.args[1]), nil
 }
 
-func sqlProxyDel(info *inputInfo) string {
+// Responsible for deleting entry and the table it links too.
+func sqlProxyDel(info *inputInfo) (string, error) {
 	input := info.dat
 	who := info.user
 	whoFull := fmt.Sprintf("%s#%s", who.Username, who.Discriminator)
+	var err error
 
-	success := sqlProxyLinkDEL(input.args)
-	if success != true {
-		return ""
-	}
+	/*
+		Could add additional error checking here to see if exist.
+		All calling functions already make this check tho.
+	*/
 
-	_, err := db.Exec("DELETE FROM commands WHERE command=(?) AND arg1=(?) AND arg2 IS NULL AND author=(?)", input.args[0], input.args[1], whoFull)
+	// Remove the proxy, may need to rearrange these. I don't want to get rid of link first tho.
+	err = sqlProxyLinkDEL(input.args)
 	if err != nil {
-		return ""
+		return "", err
 	}
 
-	return fmt.Sprintf("[%s deleted]: -> %s %s", whoFull, input.args[0], input.args[1])
+	// Perform deletion
+	_, err = db.Exec("DELETE FROM commands WHERE command=(?) AND arg1=(?) AND arg2 IS NULL AND author=(?)", input.args[0], input.args[1], whoFull)
+	if err != nil {
+		errLog.Println("deleting with proxy", err)
+		err = errors.New("unable to delete command")
+		return "", err
+	}
+
+	return fmt.Sprintf("[%s deleted]: -> %s %s", whoFull, input.args[0], input.args[1]), nil
 }
 
-func sqlCMDBlacklist(info *inputInfo) string {
-	// Check permisions for Blacklist
+// Blacklists a player and prevents them from using.
+// This could be for a number of things such as,
+// Bot abuse, in-service abuse, etc
+func sqlCMDBlacklist(info *inputInfo) (string, error) {
 	user := info.user
 	input := info.dat
 	userFull := fmt.Sprintf("%s#%s", user.Username, user.Discriminator)
+	var err error
+
 	if input.length != 1 {
-		discordLog.Println("Not enough arguments")
-		return ""
+		err = errors.New("not enough arguments")
+		return "", err
 	} else if sqlCheckPerm(user.ID) == false {
-		discordLog.Println(userFull + "(" + user.ID + ") attempted to add a command.")
-		return ""
+		err = errors.New("you do not have permissions to do that")
+		return "", err
 	}
 
-	reportUser := userFind(info.channelID, input.args[0])
-	if reportUser == nil {
-		discordLog.Println("Bad user.")
-		return ""
+	// Find user, get ID. Return on bad ID
+	reported, err := userFind(info.channel.ID, input.args[0])
+	if err != nil {
+		return "", err
 	}
 
-	criminal := fmt.Sprintf("%s#%s", reportUser.Username, reportUser.Discriminator)
+	criminal := fmt.Sprintf("%s#%s", reported.Username, reported.Discriminator)
 	// Check if it exists already
-	var status bool
-	err := db.QueryRow("SELECT status FROM blacklist WHERE name=(?)", criminal).Scan(&status)
-	if err != nil && status == false {
-		// Add to table
-		_, err := db.Exec("INSERT INTO blacklist (name, status, times, start_date, who) VALUES (?, true, 1, Now(), ?)", criminal, userFull)
-		if err != nil {
-			discordLog.Println("Issue with init blacklisting user")
-			return ""
-		}
-	} else {
-		_, err := db.Exec("UPDATE blacklist SET times = times+1, start_date = Now(), who = (?), status = true WHERE name = (?)", userFull, criminal)
-		if err != nil {
-			discordLog.Println("Error updating blacklist")
-			return ""
+	var status sql.NullBool
+	err = db.QueryRow("SELECT status FROM blacklist WHERE name=(?)", criminal).Scan(&status)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// Add to table
+			_, err = db.Exec("INSERT INTO blacklist (name, status, times, start_date, who) VALUES (?, true, 1, Now(), ?)", criminal, userFull)
+			if err != nil {
+				errLog.Println("issue inserting new blacklistee", err)
+				err = errors.New("could not add new blacklistee")
+				return "", err
+			}
+			// Rows were found, another issue occured.
+			errLog.Println("getting reports", err)
+			err = errors.New("could not report user")
+			return "", err
 		}
 	}
-	return fmt.Sprintf("%s has blacklisted %s. Sucks to suck.", userFull, criminal)
+	if status.Valid && status.Bool == false {
+		_, err = db.Exec("UPDATE blacklist SET times = times+1, start_date = Now(), who = (?), status = true WHERE name = (?)", userFull, criminal)
+		if err != nil {
+			errLog.Println("error updating with new blacklistee")
+			err = errors.New("could not blacklist user")
+			return "", err
+		}
+	}
+	return fmt.Sprintf("%s has blacklisted %s. Sucks to suck.", userFull, criminal), nil
 }
 
-func sqlCMDReport(info *inputInfo) string {
-
+// Updates a counter for amount of reports on a player.
+// Adds a new entry if it is not existant.
+func sqlCMDReport(info *inputInfo) (string, error) {
 	user := info.user
 	input := info.dat
 	userFull := fmt.Sprintf("%s#%s", user.Username, user.Discriminator)
-	var amount int
+	var amount sql.NullInt64
+	var err error
 
-	reportUser := userFind(info.channelID, input.args[0])
-	if reportUser == nil {
-		discordLog.Println("Bad user.")
-		return ""
+	reportUser, err := userFind(info.channel.ID, input.args[0])
+	if err != nil {
+		return "", err
 	}
+
 	criminal := fmt.Sprintf("%s#%s", reportUser.Username, reportUser.Discriminator)
 
 	if input.length != 1 {
-		discordLog.Println("Not enough arguments")
-		return ""
+		err = errors.New("not enough arguments. want: [report] [username#1234]")
+		return "", err
 	}
 
-	err := db.QueryRow("SELECT times FROM blacklist WHERE name=(?)", criminal).Scan(&amount)
-	if err != nil && amount == 0 {
-		// Add to table
-		_, err := db.Exec("INSERT INTO blacklist (name, status, reports) VALUES (?, false, 1)", criminal)
-		if err != nil {
-			discordLog.Println("Issue with init blacklisting user")
-			return ""
+	// Get info for amount of times previously reported. If 0, add.
+	err = db.QueryRow("SELECT times FROM blacklist WHERE name=(?)", criminal).Scan(&amount)
+	if err != nil {
+		// If rows are not found. Insert into table.
+		if err == sql.ErrNoRows {
+			_, err := db.Exec("INSERT INTO blacklist (name, status, reports) VALUES (?, false, 1)", criminal)
+			if err != nil {
+				errLog.Println("issue with init reporting user", err)
+				err = errors.New("could not report user")
+				return "", err
+			}
 		}
-	} else {
+		// Rows were found, another issue occured.
+		errLog.Println("getting reports", err)
+		err = errors.New("could not report user")
+		return "", err
+	}
+	// Update the tables counter for reporting.
+	if amount.Valid && amount.Int64 > 0 {
 		_, err := db.Exec("UPDATE blacklist SET reports = reports+1 WHERE name = (?)", criminal)
 		if err != nil {
-			discordLog.Println("Error updating blacklist")
-			return ""
+			errLog.Println("updating report", err)
+			err = errors.New("could not report user")
+			return "", err
 		}
 	}
 
-	return fmt.Sprintf("%s has reported %s.", userFull, criminal)
+	return fmt.Sprintf("%s has reported %s.", userFull, criminal), nil
 }
 
-func sqlProxyLinkSET(args []string, text string) string {
-
+// Create a new link (may replace with ADD)
+func sqlProxyLinkSET(args []string, text string) (string, error) {
 	var err error
 	var res sql.Result
 
@@ -544,41 +645,67 @@ func sqlProxyLinkSET(args []string, text string) string {
 	case "event":
 		res, err = db.Exec("INSERT INTO events (weekday, time) VALUES (?, ?)", args[1], text)
 	default:
-		errLog.Println("Could not determine type for addition")
-		return ""
+		err = errors.New("not option found for setting link")
+		return "", err
 	}
 	if err != nil {
-		errLog.Println("Could not add to table", err)
-		return ""
+		errLog.Println("could not add link", err)
+		err = errors.New("could not add to database")
+		return "", err
 	}
 	lastID, err := res.LastInsertId()
 	if err != nil {
-		log.Println("Could not retrieve ID for insert", err)
+		errLog.Println("could not get ID for new link", err)
+		err = errors.New("could not add")
+		return "", err
 	}
 
-	return fmt.Sprintf("%d", lastID)
+	return fmt.Sprintf("%d", lastID), nil
 }
 
-func sqlProxyLinkGET(command, id string) (string, string) {
-	var info1, info2 string
+// Get ID of foreign coloum
+func sqlProxyLinkGET(command, id string) ([2]string, error) {
+	var info1, info2 sql.NullString
+	var strs [2]string
 	var err error
+
 	switch command {
 	case "script":
 		err = db.QueryRow("SELECT script FROM library WHERE id=(?)", id).Scan(&info1)
 	case "event":
 		err = db.QueryRow("SELECT weekday, time FROM events WHERE id=(?)", id).Scan(&info1, &info2)
 	default:
-		return "", ""
+		err = errors.New("bad request")
+		return strs, err
 	}
 	if err != nil {
-		errLog.Println(err)
-		return "", ""
+		if err == sql.ErrNoRows {
+			err = errors.New("command doesn't exist")
+			return strs, err
+		}
+		errLog.Println("getting link", err)
+		err = errors.New("request failed")
+		return strs, err
 	}
-	return info1, info2
+
+	if info1.Valid && info2.Valid {
+		strs[0] = info1.String
+		strs[1] = info2.String
+		return strs, nil
+	} else if info1.Valid && info2.Valid == false {
+		strs[0] = info1.String
+		return strs, nil
+	} else if info1.Valid == false && info2.Valid {
+		strs[1] = info2.String
+		return strs, err
+	}
+
+	err = errors.New("results not found?")
+	return strs, err
 }
 
-func sqlProxyLinkMOD(info []string) bool {
-
+// Modify foreign table
+func sqlProxyLinkMOD(info []string) error {
 	var err error
 	switch info[0] {
 	case "script":
@@ -586,18 +713,20 @@ func sqlProxyLinkMOD(info []string) bool {
 	case "event":
 		_, err = db.Exec("UPDATE events SET time=(?) WHERE weekday=(?)", info[2], info[1])
 	default:
-		return false
+		err = errors.New("option not found for modifying link")
+		return err
 	}
 
 	if err != nil {
-		errLog.Println(err)
-		return false
+		errLog.Println("modifying link", err)
+		return err
 	}
 
-	return true
+	return nil
 }
 
-func sqlProxyLinkDEL(info []string) bool {
+// Delete foreign table
+func sqlProxyLinkDEL(info []string) error {
 	var err error
 	switch info[0] {
 	case "script":
@@ -605,24 +734,30 @@ func sqlProxyLinkDEL(info []string) bool {
 	case "event":
 		_, err = db.Exec("DELETE FROM events WHERE weekday=(?)", info[1])
 	default:
-		return false
+		err = errors.New("option not found for deleting link")
+		return err
 	}
 
 	if err != nil {
-		errLog.Println(err)
-		return false
+		errLog.Println("deleting link", err)
+		return err
 	}
 
-	return true
+	return nil
 }
 
+// Check if user is blacklisted from using the bot
 func sqlBlacklistGET(input string) bool {
-	var status bool
+	var status sql.NullBool
 	err := db.QueryRow("SELECT status FROM blacklist WHERE name=(?)", input).Scan(&status)
 	if err != nil {
-		errLog.Println(err)
+		// If row doesn't exist, return false
+		if err == sql.ErrNoRows {
+			return false
+		}
+		errLog.Println("getting blacklistings", err)
 		return false
-	} else if status {
+	} else if status.Valid && status.Bool {
 		return true
 	}
 	return false

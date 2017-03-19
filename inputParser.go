@@ -5,45 +5,42 @@ import (
 	"strings"
 )
 
-func inputParser(info *inputInfo) string {
+func inputParser(info *inputInfo) (string, error) {
 
 	var sndmsg string
+	var err error
 
 	switch info.dat.command {
 	case "event":
-		sndmsg = sqlCMDEvent()
+		sndmsg, err = sqlCMDEvent()
 	case "grant":
-		sndmsg = sqlCMDGrant(info)
+		sndmsg, err = sqlCMDGrant(info)
 	case "add":
-		info.dat.modifier = true
-		sndmsg = sqlCMDAdd(info)
+		sndmsg, err = sqlCMDAdd(info)
 	case "del":
-		info.dat.modifier = true
-		sndmsg = sqlCMDDel(info)
+		sndmsg, err = sqlCMDDel(info)
 	case "mod":
-		info.dat.modifier = true
-		sndmsg = sqlCMDMod(info)
+		sndmsg, err = sqlCMDMod(info)
 	case "blacklist":
-		sndmsg = sqlCMDBlacklist(info)
+		sndmsg, err = sqlCMDBlacklist(info)
 	case "report":
-		sndmsg = sqlCMDReport(info)
+		sndmsg, err = sqlCMDReport(info)
 	case "version":
 		sndmsg = fmt.Sprintf("version: `%s`", _version)
 	default:
-		sndmsg = sqlCMDSearch(info.dat, info.dat.length+1)
+		sndmsg, err = sqlCMDSearch(info.dat, info.dat.length+1)
 	}
 
-	return sndmsg
+	return sndmsg, err
 }
 
 func inputText(input string) *inputDat {
-
-	s := strings.Split(input, " ")
-
 	_proc := false // test for stripping/fixing quotations
 	var text string
 	var inputLen int
 	var iodat inputDat
+
+	s := strings.Split(input, " ")
 
 	for k, p := range s[1:] {
 		if strings.HasPrefix(p, "\"") {
@@ -63,6 +60,7 @@ func inputText(input string) *inputDat {
 		inputLen = len(s) - 1
 	}
 
+	iodat.attr = setAttr(s)
 	iodat.args = s[1:]
 	iodat.length = inputLen
 	iodat.text = text
@@ -81,4 +79,41 @@ func cmdconv(info *inputDat) []string {
 	str := fmt.Sprintf("%s %s", info.command, strings.Join(info.args, " "))
 	return strings.Split(str, " ")
 
+}
+
+func setAttr(input []string) int {
+	or := 0
+	if len(input) > 1 {
+		for i := 0; i < 2; i++ {
+			switch strings.ToLower(input[i]) {
+			case ",add":
+				or = or | cmdADD
+			case ",mod":
+				or = or | cmdMODIFY
+			case ",del":
+				or = or | cmdDELETE
+			case "event":
+				or = or | cmdEVENT
+			case "script":
+				or = or | cmdSCRIPT
+			case "vendor":
+				or = or | cmdVENDOR
+			}
+		}
+	}
+	return or
+}
+
+func modifierSet(info *inputDat) bool {
+	m := info.attr
+	switch {
+	case m&cmdADD == cmdADD:
+		return true
+	case m&cmdMODIFY == cmdMODIFY:
+		return true
+	case m&cmdDELETE == cmdDELETE:
+		return true
+	default:
+		return false
+	}
 }

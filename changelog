@@ -1,3 +1,15 @@
+1.1.2 - SQL additions and Fixes:
+            Error checking on tables that have no information.
+            Error handling and returning on failed commands.
+            Comments to indicate which functions do what.
+            + more error handling.
+        Core addtions:
+            Error handling on important lookup functions like channels and users.
+            Input parsing has been increased based on types: add/mod/del/event/script/vendor
+            Channel searching for all messages inbound. Checks if it is a private message.
+        Discord additions:
+            Invalid or bad commands responding to the user via DM (private messaging.)
+            Logging all text to and from the bot from other users.
 1.1.1 - Discord Fixes:
             Changed "event" to now be set and count down toward several different ones.
             Modifying commands didn't have a check to see if they existed, check added.

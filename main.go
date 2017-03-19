@@ -10,23 +10,30 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-const _version = "1.1.1"
+const _version = "1.1.2"
+const (
+	cmdADD = 1 << iota
+	cmdMODIFY
+	cmdDELETE
+	cmdEVENT
+	cmdSCRIPT
+	cmdVENDOR
+)
 
 type inputDat struct {
-	text     string
-	command  string
-	args     []string
-	length   int
-	modifier bool // If it is an "Add/Mod/Del" command
+	text    string
+	command string
+	args    []string
+	length  int
+	attr    int
 }
 
 type inputInfo struct {
-	admin     bool // if user and channel are set- true
-	send      bool // Send data thru channel or send to console.
-	user      *discordgo.User
-	channel   *discordgo.Channel
-	channelID string
-	dat       *inputDat
+	admin   bool // if user and channel are set- true
+	send    bool // Send data thru channel or send to console.
+	user    *discordgo.User
+	channel *discordgo.Channel
+	dat     *inputDat
 }
 
 var (
@@ -35,6 +42,7 @@ var (
 	dUser      *discordgo.User
 	discordLog *log.Logger // Logs Discord request actions - global
 	errLog     *log.Logger // Logs Err information such as SQL - global
+	dmLog      *log.Logger
 )
 
 func cleanup() {
