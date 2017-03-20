@@ -1,23 +1,37 @@
 ### Discord Bot
-Discord API: [https://github.com/bwmarrin/discordgo](bwmarrin/discordgo)
-MySQL Drivers: [https://github.com/go-sql-driver/mysql](my-sql-driver/mysql)
++ Discord API: [bwmarrin/discordgo](https://github.com/bwmarrin/discordgo)
++ MySQL Drivers: [my-sql-driver/mysq](https://github.com/go-sql-driver/mysql)
 
 This is my first attempt at the Go/Golang and also writing a Discord Bot. It requires both of the above projects.
 This wouldn't have been possible for me to do without contributors of the projects above, so I greatly appreciate their work.
 
 ### Features
 + Console Interface
++ Remote capabilities
 + SQL DB to store commands between runs
 + On-the-fly runtime abilities to add additional commands
 + Checks permissions to allow access for commands
 + Error checking, handling, and logging
 
 ### Some of the TODO list
-+ More console options (check channels, guilds, etc)
 + Upload the SQL DB format for all tables.
 + Additional built-in commands.
-+ Help/Usage
++ ,yay and ,nay options
++ list all DMs (UserChannels())
++ Greet on "Join:
++ Presence update, ie "playing SUCH&SUCH"
++ Database containing users and last-seen
++ Allow vendor owners to update commands
++ google/wiki search in-line
++ Linking commmands to each other
++ User and Channel mentions. @1234567890
++ HELP increase
++ Organize SQL processing better. Possible split
++ Add an official "client" (using plain-text / netcat atm)
++ Launch additional process to monitor DM/PMs
++ Command DUMP/HELP thru PM
++ JSON parsing of server API for items
 
 #### Versions
-Current: v1.1.1
-See changelog
+Current: v1.1.3
+See [changelog](https://github.com/d0x1p2/DiscordBot-go/blob/master/changelog)

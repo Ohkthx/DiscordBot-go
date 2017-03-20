@@ -64,6 +64,8 @@ func main() {
 	var err error
 	dSession = setup(*debug, *user, *id, *pwd, *token)
 
+	go serverInit()
+
 	// Register messageCreate as a callback for the messageCreate events.
 	dSession.AddHandler(messageHandler)
 

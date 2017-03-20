@@ -1,3 +1,7 @@
+1.1.3 - Core additions: 
+            Server setup. Can recv connections to set up remote consoles.
+        Console additions:
+            "kill-server"   - kills the server from remove host. Works local also.
 1.1.2 - SQL additions and Fixes:
             Error checking on tables that have no information.
             Error handling and returning on failed commands.
@@ -10,6 +14,9 @@
         Discord additions:
             Invalid or bad commands responding to the user via DM (private messaging.)
             Logging all text to and from the bot from other users.
+        Console additions:
+            "privmsg"   - sends a private message
+                        Requires channel and user to be set.
 1.1.1 - Discord Fixes:
             Changed "event" to now be set and count down toward several different ones.
             Modifying commands didn't have a check to see if they existed, check added.

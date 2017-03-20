@@ -13,8 +13,8 @@ func messageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 	c, err := s.Channel(m.ChannelID)
 	if err != nil {
 		return
-	} else if c.IsPrivate {
-		dmLog.Printf("--> [%s] %s#%s: %s \n", m.Timestamp, m.Author.Username, m.Author.Discriminator, m.Content)
+	} else if c.IsPrivate && m.Author.ID != dUser.ID {
+		dmLog.Printf("--> %s#%s: %s \n", m.Author.Username, m.Author.Discriminator, m.Content)
 		//fmt.Printf("%s#%s: %s \n", m.Author.Username, m.Author.Discriminator, m.Content)
 	}
 	if m.Content == "" || m.Content[0] != ',' {
@@ -44,7 +44,7 @@ func messageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 		if err != nil {
 			return
 		}
-		dmLog.Printf("<-- [%s] %s#%s: %s \n", msg.Timestamp, msg.Author.Username, msg.Author.Discriminator, msg.Content)
+		dmLog.Printf("<-- %s#%s: %s \n", msg.Author.Username, msg.Author.Discriminator, msg.Content)
 		//fmt.Printf("%s#%s: %s \n", msg.Author.Username, msg.Author.Discriminator, msg.Content)
 	} else {
 		if sndmsg != "" {

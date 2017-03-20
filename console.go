@@ -2,8 +2,8 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 	"time"
@@ -24,12 +24,15 @@ func core() {
 		temp := strings.Fields(input)
 		coreInfo.dat = inputText(strings.Join(temp, " "))
 		if coreInfo.dat.command != "" {
-			ioHandler(coreInfo)
+			err := ioHandler(coreInfo)
+			if err != nil {
+				fmt.Println(err)
+			}
 		}
 	}
 }
 
-func ioHandler(info *inputInfo) {
+func ioHandler(info *inputInfo) error {
 	// Used to parse user input to console/cli
 	input := info.dat
 	user := info.user
@@ -41,12 +44,11 @@ func ioHandler(info *inputInfo) {
 		fallthrough
 	case "admin":
 		if channel == nil {
-			log.Println("Set channel first.")
+			err = errors.New("set channel first")
 			break
 		}
 		user, err = userFind(channel.ID, input.args[0])
 		if err != nil {
-			log.Println(err)
 			break
 		}
 		info.admin = true
@@ -55,65 +57,41 @@ func ioHandler(info *inputInfo) {
 	case "channel":
 		channel, err = channelFind(input.args[0])
 		if err != nil {
-			log.Println(err)
 			break
 		}
 		info.channel = channel
 
 	case "msg":
 		if channel == nil {
-			log.Println("Set channel first.")
+			err = errors.New("set channel first")
 			break
 		}
 		_, _ = dSession.ChannelMessageSend(channel.ID, strings.Join(input.args, " "))
 	case "privmsg":
 		if input.length < 2 || input.text == "" {
-			log.Println("Bad privmsg")
+			err = errors.New("bad privmsg")
 			break
 		}
 		recep, err := userFind(channel.ID, input.args[0])
 		if err != nil {
-			log.Println(err)
 			break
 		}
 		c, _ := dSession.UserChannelCreate(recep.ID)
 		_, _ = dSession.ChannelMessageSend(c.ID, strings.Join(input.args[1:], " "))
-	case "pmc":
-		c, _ := dSession.UserChannels()
-		for k, p := range c {
-			fmt.Printf("%d) %s\n", k, p.Name)
-		}
 
 	default:
 		if info.admin == true {
 			text, _ := inputParser(info)
 			if info.send {
-
 				_, _ = dSession.ChannelMessageSend(info.channel.ID, text)
 			} else {
-				log.Println(text)
+				err = errors.New(text)
 			}
 			break
 		} else if channel != nil && user != nil {
 			break
 		}
-		log.Println("Set channel and/or admin")
-		fallthrough
-
-	case "status":
-		if channel == nil {
-			log.Printf("Status: %10s [%s]\n", "Channel", "----")
-			log.Printf("Status: %10s [%s]\n", "Admin", "----")
-			break
-		}
-		if user == nil {
-			log.Printf("Status: %10s [%s]\n", "Channel", channel.Name)
-			log.Printf("Status: %10s [%s]\n", "Admin", "----")
-			break
-		}
-		log.Printf("Status: %10s [%s]\n", "Channel", channel.Name)
-		log.Printf("Status: %10s [%s]\n", "Admin", user.Username)
-		break
+		err = errors.New("Set channel and/or admin")
 
 	case "send":
 		if info.send == true {
@@ -121,12 +99,18 @@ func ioHandler(info *inputInfo) {
 		} else {
 			info.send = true
 		}
-		log.Println("Send to channel: ", info.send)
 
+		tmp := fmt.Sprintf("send to channel: %s", info.send)
+		err = errors.New(tmp)
+
+	// kill-server will be used by remote consoles
+	case "kill-server":
+		fallthrough
 	case "quit":
 		fallthrough
 	case "exit":
 		cleanup()
 		os.Exit(0)
 	}
+	return err
 }
