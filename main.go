@@ -10,7 +10,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-const _version = "1.1.2"
+const _version = "1.1.3"
 const (
 	cmdADD = 1 << iota
 	cmdMODIFY
@@ -34,46 +34,40 @@ type inputInfo struct {
 	user    *discordgo.User
 	channel *discordgo.Channel
 	dat     *inputDat
+	session *discordgo.Session
+	db      *sql.DB
 }
 
 var (
-	db         *sql.DB            // SQL database - global
-	dSession   *discordgo.Session // Discord session - global
-	dUser      *discordgo.User
-	discordLog *log.Logger // Logs Discord request actions - global
-	errLog     *log.Logger // Logs Err information such as SQL - global
-	dmLog      *log.Logger
+	db     *sql.DB     // SQL database - global
+	errLog *log.Logger // Logs Err information such as SQL - global
+	dmLog  *log.Logger
 )
 
 func cleanup() {
 	fmt.Println("Cleaning up...")
-	dSession.Close()
 	db.Close()
 	fmt.Println("Terminated.")
 	os.Exit(0)
 }
 
 func main() {
-	user := flag.Bool("user", false, "use username/password")
-	id := flag.String("u", "", "username")
-	pwd := flag.String("p", "", "password")
-	token := flag.String("t", "", "token")
 	debug := flag.Bool("debug", false, "enable debug mode")
 	flag.Parse()
 
 	var err error
-	dSession = setup(*debug, *user, *id, *pwd, *token)
+	dSession := setup(*debug)
 
 	go serverInit()
 
 	// Register messageCreate as a callback for the messageCreate events.
 	dSession.AddHandler(messageHandler)
 
-	dUser, err = dSession.User("@me")
-	if err != nil {
-		discordLog.Println("Error obtaining account details:", err)
-		return
-	}
+	//dUser, err = dSession.User("@me")
+	//if err != nil {
+	//	errLog.Fatal("Error obtaining account details:", err)
+	//	return
+	//}
 
 	// Open the websocket and begin listening.
 	err = dSession.Open()
@@ -81,11 +75,8 @@ func main() {
 		errLog.Fatal("Error discord opening connection:", err)
 		return
 	}
+	dSession.UpdateStatus(0, "Ultima-Shards: AOS")
 
-	log.Println("Bot is now running.  Press CTRL-C to exit.")
-	// Simple way to keep program running until CTRL-C is pressed.
-	//<-make(chan struct{})
-
-	core()
+	core(dSession)
 
 }

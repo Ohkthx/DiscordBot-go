@@ -2,8 +2,10 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"net"
 	"strings"
+	"time"
 )
 
 func serverInit() error {
@@ -34,6 +36,7 @@ func requestHandler(conn net.Conn) {
 	coreInfo.send = false
 
 	for {
+		fmt.Printf("[%s] > ", time.Now().Format(time.Stamp))
 		input, _ := reader.ReadString('\n')
 		temp := strings.Fields(input)
 		coreInfo.dat = inputText(strings.Join(temp, " "))

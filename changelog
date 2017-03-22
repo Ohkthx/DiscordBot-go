@@ -1,7 +1,15 @@
 1.1.3 - Core additions: 
             Server setup. Can recv connections to set up remote consoles.
+            Fixed string output for "send", properly says the bool value
+            Removed DSessions and DUser global variables.
+        Core removals:
+            Ability to use username/password
         Console additions:
             "kill-server"   - kills the server from remove host. Works local also.
+        Discord additions:
+            Removed old traces of discordLog (better error handling replaced.)
+            Changed DM response to include authors name- so you know where the message went.
+            Added a status update to be playing a game.
 1.1.2 - SQL additions and Fixes:
             Error checking on tables that have no information.
             Error handling and returning on failed commands.

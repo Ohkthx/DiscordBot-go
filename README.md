@@ -18,8 +18,7 @@ This wouldn't have been possible for me to do without contributors of the projec
 + Additional built-in commands.
 + ,yay and ,nay options
 + list all DMs (UserChannels())
-+ Greet on "Join:
-+ Presence update, ie "playing SUCH&SUCH"
++ Greet on "Join"
 + Database containing users and last-seen
 + Allow vendor owners to update commands
 + google/wiki search in-line
@@ -31,6 +30,8 @@ This wouldn't have been possible for me to do without contributors of the projec
 + Launch additional process to monitor DM/PMs
 + Command DUMP/HELP thru PM
 + JSON parsing of server API for items
++ Increment "uses" in commands table
++ SQL setup PER triggers. No more global.
 
 #### Versions
 Current: v1.1.3

@@ -5,20 +5,23 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
+
+	"github.com/bwmarrin/discordgo"
 )
 
-func core() {
+func core(session *discordgo.Session) {
 	// Main loop for processing user input to console.
-	_running := true
 	coreInfo := &inputInfo{admin: false, user: nil, channel: nil}
 	coreInfo.send = false
+	coreInfo.session = session
 
 	time.Sleep(150 * time.Millisecond)
 	reader := bufio.NewReader(os.Stdin)
 
-	for _running {
+	for {
 		fmt.Printf("[%s] > ", time.Now().Format(time.Stamp))
 		input, _ := reader.ReadString('\n')
 		temp := strings.Fields(input)
@@ -37,6 +40,7 @@ func ioHandler(info *inputInfo) error {
 	input := info.dat
 	user := info.user
 	channel := info.channel
+	session := info.session
 	var err error
 
 	switch input.command {
@@ -47,7 +51,7 @@ func ioHandler(info *inputInfo) error {
 			err = errors.New("set channel first")
 			break
 		}
-		user, err = userFind(channel.ID, input.args[0])
+		user, err = userFind(info, input.args[0])
 		if err != nil {
 			break
 		}
@@ -55,7 +59,7 @@ func ioHandler(info *inputInfo) error {
 		info.user = user
 
 	case "channel":
-		channel, err = channelFind(input.args[0])
+		channel, err = channelFind(info, input.args[0])
 		if err != nil {
 			break
 		}
@@ -66,24 +70,24 @@ func ioHandler(info *inputInfo) error {
 			err = errors.New("set channel first")
 			break
 		}
-		_, _ = dSession.ChannelMessageSend(channel.ID, strings.Join(input.args, " "))
+		_, _ = session.ChannelMessageSend(channel.ID, strings.Join(input.args, " "))
 	case "privmsg":
 		if input.length < 2 || input.text == "" {
 			err = errors.New("bad privmsg")
 			break
 		}
-		recep, err := userFind(channel.ID, input.args[0])
+		recep, err := userFind(info, input.args[0])
 		if err != nil {
 			break
 		}
-		c, _ := dSession.UserChannelCreate(recep.ID)
-		_, _ = dSession.ChannelMessageSend(c.ID, strings.Join(input.args[1:], " "))
+		c, _ := session.UserChannelCreate(recep.ID)
+		_, _ = session.ChannelMessageSend(c.ID, strings.Join(input.args[1:], " "))
 
 	default:
 		if info.admin == true {
 			text, _ := inputParser(info)
 			if info.send {
-				_, _ = dSession.ChannelMessageSend(info.channel.ID, text)
+				_, _ = session.ChannelMessageSend(info.channel.ID, text)
 			} else {
 				err = errors.New(text)
 			}
@@ -100,7 +104,7 @@ func ioHandler(info *inputInfo) error {
 			info.send = true
 		}
 
-		tmp := fmt.Sprintf("send to channel: %s", info.send)
+		tmp := fmt.Sprintf("send to channel: %s", strconv.FormatBool(info.send))
 		err = errors.New(tmp)
 
 	// kill-server will be used by remote consoles
@@ -109,6 +113,7 @@ func ioHandler(info *inputInfo) error {
 	case "quit":
 		fallthrough
 	case "exit":
+		info.session.Close()
 		cleanup()
 		os.Exit(0)
 	}

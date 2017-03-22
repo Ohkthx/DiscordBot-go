@@ -7,8 +7,9 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-func userFind(channel, user string) (*discordgo.User, error) {
+func userFind(info *inputInfo, user string) (*discordgo.User, error) {
 	pos := "" // Position in searching (user ID)
+	session := info.session
 	var userFull []string
 	var username string
 	var err error
@@ -21,7 +22,7 @@ func userFind(channel, user string) (*discordgo.User, error) {
 		return nil, err
 	}
 
-	chanStruct, err := dSession.Channel(channel)
+	chanStruct, err := session.Channel(info.channel.ID)
 	if err != nil {
 		errLog.Println("could not get channel structure:", err)
 		err = errors.New("could not obtain channels")
@@ -29,7 +30,7 @@ func userFind(channel, user string) (*discordgo.User, error) {
 	}
 
 	for {
-		members, err := dSession.GuildMembers(chanStruct.GuildID, pos, 100)
+		members, err := session.GuildMembers(chanStruct.GuildID, pos, 100)
 		if err != nil {
 			err = errors.New("could not obtain user list")
 			return nil, err
@@ -46,8 +47,9 @@ func userFind(channel, user string) (*discordgo.User, error) {
 	}
 }
 
-func channelFind(name string) (*discordgo.Channel, error) {
-	guilds, err := dSession.UserGuilds()
+func channelFind(info *inputInfo, name string) (*discordgo.Channel, error) {
+	session := info.session
+	guilds, err := session.UserGuilds()
 	if err != nil {
 		errLog.Println("error getting guilds", err)
 		err = errors.New("could not get server info")
@@ -55,7 +57,7 @@ func channelFind(name string) (*discordgo.Channel, error) {
 	}
 
 	for _, g := range guilds {
-		channels, err := dSession.GuildChannels(g.ID)
+		channels, err := session.GuildChannels(g.ID)
 		if err != nil {
 			errLog.Println("error getting guild channels", err)
 			err = errors.New("error getting rooms")

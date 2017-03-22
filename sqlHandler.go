@@ -49,7 +49,7 @@ func sqlCMDGrant(info *inputInfo) (string, error) {
 	}
 
 	// Find user, get ID. Return on bad ID
-	addee, err := userFind(info.channel.ID, input.args[0])
+	addee, err := userFind(info, input.args[0])
 	if err != nil {
 		return "", err
 	}
@@ -548,7 +548,7 @@ func sqlCMDBlacklist(info *inputInfo) (string, error) {
 	}
 
 	// Find user, get ID. Return on bad ID
-	reported, err := userFind(info.channel.ID, input.args[0])
+	reported, err := userFind(info, input.args[0])
 	if err != nil {
 		return "", err
 	}
@@ -592,7 +592,7 @@ func sqlCMDReport(info *inputInfo) (string, error) {
 	var amount sql.NullInt64
 	var err error
 
-	reportUser, err := userFind(info.channel.ID, input.args[0])
+	reportUser, err := userFind(info, input.args[0])
 	if err != nil {
 		return "", err
 	}
