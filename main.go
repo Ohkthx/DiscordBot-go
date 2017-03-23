@@ -35,7 +35,7 @@ type inputInfo struct {
 	channel *discordgo.Channel
 	dat     *inputDat
 	session *discordgo.Session
-	db      *sql.DB
+	//db      *sql.DB
 }
 
 var (
@@ -62,12 +62,6 @@ func main() {
 
 	// Register messageCreate as a callback for the messageCreate events.
 	dSession.AddHandler(messageHandler)
-
-	//dUser, err = dSession.User("@me")
-	//if err != nil {
-	//	errLog.Fatal("Error obtaining account details:", err)
-	//	return
-	//}
 
 	// Open the websocket and begin listening.
 	err = dSession.Open()

@@ -31,7 +31,7 @@ This wouldn't have been possible for me to do without contributors of the projec
 + Command DUMP/HELP thru PM
 + JSON parsing of server API for items
 + Increment "uses" in commands table
-+ SQL setup PER triggers. No more global.
++ SQL setup PER triggers. No more global. -> Large overhaul, maybe v1.2
 
 #### Versions
 Current: v1.1.3
