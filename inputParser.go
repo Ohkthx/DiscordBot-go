@@ -11,9 +11,8 @@ func inputParser(info *inputInfo) (string, error) {
 	var err error
 
 	switch info.dat.command {
-	case "yay":
+	case "events":
 		fallthrough
-	case "nay":
 	case "event":
 		sndmsg, err = sqlCMDEvent()
 	case "grant":

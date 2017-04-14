@@ -326,11 +326,12 @@ func sqlCMDEvent() (string, error) {
 			return "", err
 		}
 		// DO SOME STUFF WITH EVENT
-		var num int
+		var num, alt int
 		cnt++
 		switch strings.ToLower(weekday) {
 		case "sunday":
 			num = 0
+			alt = 7
 		case "monday":
 			num = 1
 		case "tuesday":
@@ -344,11 +345,24 @@ func sqlCMDEvent() (string, error) {
 		case "saturday":
 			num = 6
 		}
+		// BETWEEN HERE FOR ISSUE
+		var dayAdd int
+		if num < int(now.Weekday()) {
+			dayAdd = alt - int(now.Weekday())
+		} else if num > int(now.Weekday()) {
+			dayAdd = num - int(now.Weekday())
+		} else {
+			dayAdd = 0
+		}
 
-		dayAdd := num - int(now.Weekday())
+		if *debug {
+			fmt.Printf("num: %d\talt: %d\tdayAdd: %d\n", num, alt, dayAdd)
+		}
+
 		var dur time.Duration
 		next := time.Date(now.Year(), now.Month(), now.Day()+dayAdd, hh, mm, 0, 0, now.Location())
 		dur = next.Sub(now)
+		// AND HERE
 
 		hour := int(dur.Hours())
 		if hour < -12 {

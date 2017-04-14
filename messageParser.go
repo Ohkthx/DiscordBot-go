@@ -7,12 +7,20 @@ import (
 )
 
 func messageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
-
 	var err error
 
-	c, err := s.Channel(m.ChannelID)
 	u, _ := s.User("@me")
-
+	err = dbUserUpdate(m.Message)
+	if err != nil {
+		errLog.Println("updating db " + err.Error())
+		return
+	}
+	err = dbChannelUpdate(m.ChannelID, m.ID, tsConvert(m.Timestamp))
+	if err != nil {
+		errLog.Println("updating channel " + err.Error())
+		return
+	}
+	c, err := s.Channel(m.ChannelID)
 	if err != nil {
 		return
 	} else if c.IsPrivate && m.Author.ID != u.ID {

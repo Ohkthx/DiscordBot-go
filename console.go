@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -44,6 +45,18 @@ func ioHandler(info *inputInfo) error {
 	var err error
 
 	switch input.command {
+	case "ch-base":
+		c, err := dbUpdate(info, false)
+		if err != nil {
+			return err
+		}
+		log.Printf("Messages found: %d\n", c)
+	case "ch-update":
+		c, err := dbUpdate(info, true)
+		if err != nil {
+			return err
+		}
+		log.Printf("Messages found: %d\n", c)
 	case "user":
 		fallthrough
 	case "admin":

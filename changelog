@@ -10,6 +10,11 @@
             Removed old traces of discordLog (better error handling replaced.)
             Changed DM response to include authors name- so you know where the message went.
             Added a status update to be playing a game.
+            Added basic message counting in a channel, including force update feature.
+        Discord Fixes:
+            Bad returning of the day of the next event.
+            Additional changes to 'event' command for proper returning of day.
+            "event" and "events" both trigger.
 1.1.2 - SQL additions and Fixes:
             Error checking on tables that have no information.
             Error handling and returning on failed commands.

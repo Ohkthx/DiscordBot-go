@@ -18,11 +18,10 @@ func setup(debug bool) *discordgo.Session {
 		errLog.Fatal(err)
 	}
 
-	db, err := sql.Open("mysql", "root@/discord")
+	db, err = sql.Open("mysql", "root@/discord")
 	if err != nil {
 		errLog.Fatal(err)
 	}
-	defer db.Close()
 
 	var query string
 	if debug == true {

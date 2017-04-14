@@ -35,13 +35,13 @@ type inputInfo struct {
 	channel *discordgo.Channel
 	dat     *inputDat
 	session *discordgo.Session
-	//db      *sql.DB
 }
 
 var (
 	db     *sql.DB     // SQL database - global
 	errLog *log.Logger // Logs Err information such as SQL - global
 	dmLog  *log.Logger
+	debug  *bool // If debug is enabled
 )
 
 func cleanup() {
@@ -52,7 +52,7 @@ func cleanup() {
 }
 
 func main() {
-	debug := flag.Bool("debug", false, "enable debug mode")
+	debug = flag.Bool("debug", false, "enable debug mode")
 	flag.Parse()
 
 	var err error
