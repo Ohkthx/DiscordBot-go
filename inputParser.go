@@ -15,6 +15,14 @@ func inputParser(info *inputInfo) (string, error) {
 		fallthrough
 	case "event":
 		sndmsg, err = sqlCMDEvent()
+	case "ctf":
+		sndmsg, err = getBattles("ctf")
+	case "online":
+		sndmsg, err = getMobile("0x19c03e", "online")
+	case "player":
+		sndmsg, err = getMobile(info.dat.args[0], "status")
+	case "item":
+		sndmsg, err = getItem(info.dat.args[0], false)
 	case "grant":
 		sndmsg, err = sqlCMDGrant(info)
 	case "add":

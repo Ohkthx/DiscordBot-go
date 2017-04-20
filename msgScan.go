@@ -62,7 +62,9 @@ func procChannel(session *discordgo.Session, channel *discordgo.Channel, startup
 			return -1, err
 		}
 		firstProcd = lastID
-		fmt.Println("Preproc LASTID: " + firstProcd)
+		if *debug {
+			fmt.Println("Preproc LASTID: " + firstProcd)
+		}
 	}
 
 	for {
@@ -97,7 +99,7 @@ func procChannel(session *discordgo.Session, channel *discordgo.Channel, startup
 					fmt.Printf("%s -> %s\n", "procChannel", "firstProc is empty, assigning.")
 				}
 				firstProcd = m.ID
-				err = dbChannelUpdate(channel.ID, m.ID, tsConvert(m.Timestamp))
+				err = dbChannelUpdate(channel, m.ID, tsConvert(m.Timestamp))
 				if err != nil {
 					return 0, err
 				}
@@ -106,7 +108,7 @@ func procChannel(session *discordgo.Session, channel *discordgo.Channel, startup
 					if *debug {
 						fmt.Printf("%s: %s -> Processed.\n", m.ID, m.Content)
 					}
-					err = dbChannelUpdate(channel.ID, m.ID, tsConvert(m.Timestamp))
+					err = dbChannelUpdate(channel, m.ID, tsConvert(m.Timestamp))
 					if err != nil {
 						return 0, err
 					}
@@ -116,6 +118,8 @@ func procChannel(session *discordgo.Session, channel *discordgo.Channel, startup
 			id = m.ID
 			if *debug {
 				fmt.Printf("%s: %s\n", m.ID, m.Content)
+			} else {
+				fmt.Printf("Processed: %10d\r", total)
 			}
 			//fmt.Printf("Messages processed: %6d\n", total)
 			//time.Sleep(500 * time.Millisecond)
@@ -147,7 +151,7 @@ func dbUserUpdate(msg *discordgo.Message) error {
 	err = db.QueryRow("SELECT id FROM users WHERE id=(?)", u.ID).Scan(&id)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			_, err = db.Exec("INSERT INTO users (id, username, discriminator, msg_count, msg_last, status) VALUES (?, ?, ?, 1, ?, true)", u.ID, u.Username, u.Discriminator, ts)
+			_, err = db.Exec("INSERT INTO users (id, username, discriminator, msg_last, msg_count, status, vote) VALUES (?, ?, ?, ?, 1, false, false)", u.ID, u.Username, u.Discriminator, ts)
 			if err != nil {
 				errLog.Println("adding user to users" + err.Error())
 				return err
@@ -170,13 +174,14 @@ func dbUserUpdate(msg *discordgo.Message) error {
 	return nil
 }
 
-func dbChannelUpdate(cID, mID, mTS string) error {
+func dbChannelUpdate(c *discordgo.Channel, mID, mTS string) error {
 	var err error
+	var cID = c.ID
 	var id sql.NullString
 	err = db.QueryRow("SELECT msg_id FROM channels WHERE id=(?)", cID).Scan(&id)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			_, err = db.Exec("INSERT INTO channels (id, msg_id, msg_time, amount) VALUES (?, ?, ?, 1)", cID, mID, mTS)
+			_, err = db.Exec("INSERT INTO channels (id, name, msg_id, msg_time, amount) VALUES (?, ?, ?, ?, 1)", cID, c.Name, mID, mTS)
 			if err != nil {
 				errLog.Println("adding a channel " + err.Error())
 				return err
@@ -194,7 +199,7 @@ func dbChannelUpdate(cID, mID, mTS string) error {
 		}
 		return nil
 	}
-	_, err = db.Exec("UPDATE channels SET msg_id=(?), msg_time=(?), amount=amount+1 WHERE id=(?)", mID, mTS, cID)
+	_, err = db.Exec("UPDATE channels SET msg_id=(?), msg_time=(?), name=(?) amount=amount+1 WHERE id=(?)", mID, mTS, c.Name, cID)
 	if err != nil {
 		errLog.Println("updating channel in channels " + err.Error())
 		return err

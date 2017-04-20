@@ -1,9 +1,11 @@
 ### Discord Bot
 + Discord API: [bwmarrin/discordgo](https://github.com/bwmarrin/discordgo)
-+ MySQL Drivers: [my-sql-driver/mysq](https://github.com/go-sql-driver/mysql)
++ MySQL Drivers: [my-sql-driver/mysql](https://github.com/go-sql-driver/mysql)
++ Vita-Nex: Core API [d0x1p2/VNCgo](https://github.com/d0x1p2/VNCgo)
 
 This is my first attempt at the Go/Golang and also writing a Discord Bot. It requires both of the above projects.
 This wouldn't have been possible for me to do without contributors of the projects above, so I greatly appreciate their work.
+*Vita-Nex: Core API is maintained by myself.
 
 ### Features
 + Console Interface
@@ -29,9 +31,8 @@ This wouldn't have been possible for me to do without contributors of the projec
 + Add an official "client" (using plain-text / netcat atm)
 + Launch additional process to monitor DM/PMs
 + Command DUMP/HELP thru PM
-+ JSON parsing of server API for items
 + Increment "uses" in commands table
-+ SQL setup PER triggers. No more global. -> Large overhaul, maybe v1.2
++ SQL setup PER triggers. No more global. -> Large overhaul, maybe v1.0
 
 #### Versions
 Current: v1.1.3

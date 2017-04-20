@@ -1,46 +1,58 @@
-1.1.3 - Core additions: 
-            Server setup. Can recv connections to set up remote consoles.
-            Fixed string output for "send", properly says the bool value
-            Removed DSessions and DUser global variables.
+0.2.0 - Version Rollback.
+        Core additions:
+            - Ultima-Shards: Multiverse API created, implemented, and commited to -> https://github.com/d0x1p2/VNCgo
+        Discord additions:
+            "ctf"       - command support for checking playing/queue.
+            "online"    - returns if a particular player is logged in. Hardcoded as Gatekeeper.
+            "item"      - returns an object of an item. Processes and displayers attributes.
+            "status"    - checks a players current status in-game.
+
+0.1.3 - Core additions: 
+            - Server setup. Can recv connections to set up remote consoles.
+            - Fixed string output for "send", properly says the bool value
+            - Removed DSessions and DUser global variables.
         Core removals:
-            Ability to use username/password
+            - Ability to use username/password
         Console additions:
             "kill-server"   - kills the server from remove host. Works local also.
         Discord additions:
-            Removed old traces of discordLog (better error handling replaced.)
-            Changed DM response to include authors name- so you know where the message went.
-            Added a status update to be playing a game.
-            Added basic message counting in a channel, including force update feature.
+            - Removed old traces of discordLog (better error handling replaced.)
+            - Changed DM response to include authors name- so you know where the message went.
+            - Added a status update to be playing a game.
+            - Added basic message counting in a channel, including force update feature.
         Discord Fixes:
-            Bad returning of the day of the next event.
-            Additional changes to 'event' command for proper returning of day.
-            "event" and "events" both trigger.
-1.1.2 - SQL additions and Fixes:
-            Error checking on tables that have no information.
-            Error handling and returning on failed commands.
-            Comments to indicate which functions do what.
-            + more error handling.
+            - Bad returning of the day of the next event.
+            - Additional changes to 'event' command for proper returning of day.
+            - "event" and "events" both trigger.
+
+0.1.2 - SQL additions and Fixes:
+            - Error checking on tables that have no information.
+            - Error handling and returning on failed commands.
+            - Comments to indicate which functions do what.
+            - additional error handling.
         Core addtions:
-            Error handling on important lookup functions like channels and users.
-            Input parsing has been increased based on types: add/mod/del/event/script/vendor
-            Channel searching for all messages inbound. Checks if it is a private message.
+            - Error handling on important lookup functions like channels and users.
+            - Input parsing has been increased based on types: add/mod/del/event/script/vendor
+            - Channel searching for all messages inbound. Checks if it is a private message.
         Discord additions:
-            Invalid or bad commands responding to the user via DM (private messaging.)
-            Logging all text to and from the bot from other users.
+            - Invalid or bad commands responding to the user via DM (private messaging.)
+            - Logging all text to and from the bot from other users.
         Console additions:
             "privmsg"   - sends a private message
                           Requires channel and user to be set.
-1.1.1 - Discord Fixes:
-            Changed "event" to now be set and count down toward several different ones.
-            Modifying commands didn't have a check to see if they existed, check added.
-            (func userFind) has added error checking for a bad name being supplied.
+
+0.1.1 - Discord Fixes:
+            - Changed "event" to now be set and count down toward several different ones.
+            - Modifying commands didn't have a check to see if they existed, check added.
+            - (func userFind) has added error checking for a bad name being supplied.
         Discord additions:
             "help"    - get help all info for a command
         SQL additions:
-            Better lookups/modifies/deletes with NULL being checked.
-            Blacklist/Report user checking for accuracy
-            sqlCMDSearch functions more appropriately.
-1.1.0 - Console additions:
+            - Better lookups/modifies/deletes with NULL being checked.
+            - Blacklist/Report user checking for accuracy
+            - sqlCMDSearch functions more appropriately.
+
+0.1.0 - Console additions:
             "channel" - lookups a channel.
             "admin"   - sets the admin user.
                         Requires channel set.
@@ -50,8 +62,8 @@
             "status"  - prints channel/admin status 
             "send"    - switch output between sending to console or discord.
             Case-insentive console input added.
-            Ability to direct input to console or channel.
-            All Discord commands accessible via console.
+            - Ability to direct input to console or channel.
+            - All Discord commands accessible via console.
         Discord additions:
             "report"    - reports a player, increments reports in SQL
             "blacklist" - revokes abilities to use discord bot
@@ -62,6 +74,8 @@
             - Attempt at accessing slices of a null array -> crashes
             - Message handling of empty text crashing bot.
             - Automatic restarting bot after exit/crash.
-        Reorganized input parsing.
-1.0.1 - ",event" command fixes.
-1.0.0 - initial release
+            - Reorganized input parsing.
+
+0.0.1 - ",event" command fixes.
+
+0.0.0 - initial release

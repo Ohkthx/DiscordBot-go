@@ -10,7 +10,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-const _version = "1.1.3"
+const _version = "0.2.0"
 const (
 	cmdADD = 1 << iota
 	cmdMODIFY

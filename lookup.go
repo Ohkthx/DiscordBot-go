@@ -22,15 +22,16 @@ func userFind(info *inputInfo, user string) (*discordgo.User, error) {
 		return nil, err
 	}
 
-	chanStruct, err := session.Channel(info.channel.ID)
-	if err != nil {
-		errLog.Println("could not get channel structure:", err)
-		err = errors.New("could not obtain channels")
-		return nil, err
-	}
-
+	/*
+		chanStruct, err := session.Channel(info.channel.ID)
+		if err != nil {
+			errLog.Println("could not get channel structure:", err)
+			err = errors.New("could not obtain channels")
+			return nil, err
+		}
+	*/
 	for {
-		members, err := session.GuildMembers(chanStruct.GuildID, pos, 100)
+		members, err := session.GuildMembers(info.channel.GuildID, pos, 100)
 		if err != nil {
 			err = errors.New("could not obtain user list")
 			return nil, err
