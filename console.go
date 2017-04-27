@@ -11,13 +11,22 @@ import (
 	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/d0x1p2/DiscordBot-go/bot"
 )
 
 func core(session *discordgo.Session) {
 	// Main loop for processing user input to console.
-	coreInfo := &inputInfo{admin: false, user: nil, channel: nil}
-	coreInfo.send = false
-	coreInfo.session = session
+	state, err := bot.New(db, session)
+	if err != nil {
+		errLog.Println(err)
+		return
+	}
+	state.Admin = false
+	state.User = nil
+	state.Channel = nil
+	state.Sendmsg = false
+
+	go bot.BattlegroundUpdater(state.Database, state.Session)
 
 	time.Sleep(150 * time.Millisecond)
 	reader := bufio.NewReader(os.Stdin)
@@ -26,9 +35,9 @@ func core(session *discordgo.Session) {
 		fmt.Printf("[%s] > ", time.Now().Format(time.Stamp))
 		input, _ := reader.ReadString('\n')
 		temp := strings.Fields(input)
-		coreInfo.dat = inputText(strings.Join(temp, " "))
-		if coreInfo.dat.command != "" {
-			err := ioHandler(coreInfo)
+		state.Cmd = inputText(strings.Join(temp, " "))
+		if state.Cmd.Command != "" {
+			err := ioHandler(state)
 			if err != nil {
 				fmt.Println(err)
 			}
@@ -36,27 +45,57 @@ func core(session *discordgo.Session) {
 	}
 }
 
-func ioHandler(info *inputInfo) error {
+func ioHandler(state *bot.Instance) (err error) {
 	// Used to parse user input to console/cli
-	input := info.dat
-	user := info.user
-	channel := info.channel
-	session := info.session
-	var err error
+	input := state.Cmd
+	user := state.User
+	channel := state.Channel
+	session := state.Session
 
-	switch input.command {
-	case "ch-base":
-		c, err := dbUpdate(info, false)
+	//var sndmsg string
+
+	switch input.Command {
+	/*case "ch-base":
+		sndmsg, err = state.DBCore("channels", bot.Add)
 		if err != nil {
-			return err
+			return
 		}
-		log.Printf("Messages found: %d\n", c)
+		log.Printf(sndmsg)
 	case "ch-update":
-		c, err := dbUpdate(info, true)
+		sndmsg, err = state.DBCore("channels", bot.Modify)
 		if err != nil {
-			return err
+			return
 		}
-		log.Printf("Messages found: %d\n", c)
+		log.Printf(sndmsg)
+	*/
+	case "update":
+		res := state.VNCCore()
+		if res.Err != nil {
+			log.Println(res.Err)
+			break
+		}
+		log.Println(res.Sndmsg)
+	case "stream":
+		// Enable and Disable flags.
+		if state.Streaming == false {
+			err = session.UpdateStreamingStatus(0, "Ultima-Shards: AOS", "https://www.twitch.tv/d0x1p2")
+			if err != nil {
+				log.Println(err)
+				break
+			}
+			state.Streaming = true
+			log.Println("enabled streaming.")
+			break
+		}
+		err = session.UpdateStreamingStatus(0, "", "")
+		if err != nil {
+			log.Println(err)
+			break
+		}
+		session.UpdateStatus(0, "Ultima-Shards: AOS")
+		state.Streaming = false
+		log.Println("disabled streaming.")
+
 	case "user":
 		fallthrough
 	case "admin":
@@ -64,61 +103,61 @@ func ioHandler(info *inputInfo) error {
 			err = errors.New("set channel first")
 			break
 		}
-		user, err = userFind(info, input.args[0])
+		user, err = state.UserFind(input.Args[0])
 		if err != nil {
 			break
 		}
-		info.admin = true
-		info.user = user
+		state.Admin = true
+		state.User = user
 
 	case "channel":
-		channel, err = channelFind(info, input.args[0])
+		channel, err = state.ChannelFind(input.Args[0])
 		if err != nil {
 			break
 		}
-		info.channel = channel
+		state.Channel = channel
 
 	case "msg":
 		if channel == nil {
 			err = errors.New("set channel first")
 			break
 		}
-		_, _ = session.ChannelMessageSend(channel.ID, strings.Join(input.args, " "))
+		_, _ = session.ChannelMessageSend(channel.ID, strings.Join(input.Args, " "))
 	case "privmsg":
-		if input.length < 2 || input.text == "" {
-			err = errors.New("bad privmsg")
+		if input.Length < 2 || input.Text == "" {
+			err = fmt.Errorf("bad privmsg")
 			break
 		}
-		recep, err := userFind(info, input.args[0])
+		recep, err := state.UserFind(input.Args[0])
 		if err != nil {
 			break
 		}
 		c, _ := session.UserChannelCreate(recep.ID)
-		_, _ = session.ChannelMessageSend(c.ID, strings.Join(input.args[1:], " "))
+		_, _ = session.ChannelMessageSend(c.ID, strings.Join(input.Args[1:], " "))
 
 	default:
-		if info.admin == true {
-			text, _ := inputParser(info)
-			if info.send {
-				_, _ = session.ChannelMessageSend(info.channel.ID, text)
+		if state.Admin == true {
+			res := inputParser(state)
+			if state.Sendmsg {
+				_, _ = session.ChannelMessageSend(state.Channel.ID, res.Sndmsg)
 			} else {
-				err = errors.New(text)
+				err = fmt.Errorf(res.Errmsg)
 			}
 			break
 		} else if channel != nil && user != nil {
 			break
 		}
-		err = errors.New("Set channel and/or admin")
+		err = fmt.Errorf("Set channel and/or admin")
 
 	case "send":
-		if info.send == true {
-			info.send = false
+		if state.Sendmsg == true {
+			state.Sendmsg = false
 		} else {
-			info.send = true
+			state.Sendmsg = true
 		}
 
-		tmp := fmt.Sprintf("send to channel: %s", strconv.FormatBool(info.send))
-		err = errors.New(tmp)
+		tmp := fmt.Sprintf("send to channel: %s", strconv.FormatBool(state.Sendmsg))
+		err = fmt.Errorf(tmp)
 
 	// kill-server will be used by remote consoles
 	case "kill-server":
@@ -126,9 +165,9 @@ func ioHandler(info *inputInfo) error {
 	case "quit":
 		fallthrough
 	case "exit":
-		info.session.Close()
+		state.Session.Close()
 		cleanup()
 		os.Exit(0)
 	}
-	return err
+	return
 }

@@ -3,52 +3,51 @@ package main
 import (
 	"fmt"
 	"strings"
+
+	"github.com/d0x1p2/DiscordBot-go/bot"
 )
 
-func inputParser(info *inputInfo) (string, error) {
+func inputParser(state *bot.Instance) (res *bot.Response) {
 
-	var sndmsg string
-	var err error
-
-	switch info.dat.command {
+	switch state.Cmd.Command {
 	case "events":
 		fallthrough
 	case "event":
-		sndmsg, err = sqlCMDEvent()
-	case "ctf":
-		sndmsg, err = getBattles("ctf")
-	case "online":
-		sndmsg, err = getMobile("0x19c03e", "online")
-	case "player":
-		sndmsg, err = getMobile(info.dat.args[0], "status")
-	case "item":
-		sndmsg, err = getItem(info.dat.args[0], false)
+		fallthrough
 	case "grant":
-		sndmsg, err = sqlCMDGrant(info)
+		fallthrough
 	case "add":
-		sndmsg, err = sqlCMDAdd(info)
+		fallthrough
 	case "del":
-		sndmsg, err = sqlCMDDel(info)
+		fallthrough
 	case "mod":
-		sndmsg, err = sqlCMDMod(info)
+		fallthrough
 	case "blacklist":
-		sndmsg, err = sqlCMDBlacklist(info)
+		fallthrough
 	case "report":
-		sndmsg, err = sqlCMDReport(info)
+		res = state.DBCore()
+	case "ctf":
+		fallthrough
+	case "online":
+		fallthrough
+	case "player":
+		fallthrough
+	case "item":
+		res = state.VNCCore()
 	case "version":
-		sndmsg = fmt.Sprintf("version: `%s`", _version)
+		res = &bot.Response{Err: nil, Errmsg: "", Sndmsg: fmt.Sprintf("version: `%s`", _version)}
 	default:
-		sndmsg, err = sqlCMDSearch(info.dat, info.dat.length+1)
+		res = state.DBCore()
 	}
 
-	return sndmsg, err
+	return
 }
 
-func inputText(input string) *inputDat {
+func inputText(input string) (command *bot.Command) {
 	_proc := false // test for stripping/fixing quotations
 	var text string
 	var inputLen int
-	var iodat inputDat
+	var iodat bot.Command
 
 	s := strings.Split(input, " ")
 
@@ -70,60 +69,17 @@ func inputText(input string) *inputDat {
 		inputLen = len(s) - 1
 	}
 
-	iodat.attr = setAttr(s)
-	iodat.args = s[1:]
-	iodat.length = inputLen
-	iodat.text = text
+	iodat.Attr = bot.SetAttr(s)
+	iodat.Args = s[1:]
+	iodat.Length = inputLen
+	iodat.Text = text
 	if strings.HasPrefix(s[0], ",") {
-		iodat.command = s[0][1:]
+		iodat.Command = s[0][1:]
 	} else {
-		iodat.command = s[0]
+		iodat.Command = s[0]
 	}
 
-	return &iodat
+	command = &iodat
+	return
 
-}
-
-func cmdconv(info *inputDat) []string {
-
-	str := fmt.Sprintf("%s %s", info.command, strings.Join(info.args, " "))
-	return strings.Split(str, " ")
-
-}
-
-func setAttr(input []string) int {
-	or := 0
-	if len(input) > 1 {
-		for i := 0; i < 2; i++ {
-			switch strings.ToLower(input[i]) {
-			case ",add":
-				or = or | cmdADD
-			case ",mod":
-				or = or | cmdMODIFY
-			case ",del":
-				or = or | cmdDELETE
-			case "event":
-				or = or | cmdEVENT
-			case "script":
-				or = or | cmdSCRIPT
-			case "vendor":
-				or = or | cmdVENDOR
-			}
-		}
-	}
-	return or
-}
-
-func modifierSet(info *inputDat) bool {
-	m := info.attr
-	switch {
-	case m&cmdADD == cmdADD:
-		return true
-	case m&cmdMODIFY == cmdMODIFY:
-		return true
-	case m&cmdDELETE == cmdDELETE:
-		return true
-	default:
-		return false
-	}
 }

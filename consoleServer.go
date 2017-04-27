@@ -6,6 +6,8 @@ import (
 	"net"
 	"strings"
 	"time"
+
+	"github.com/d0x1p2/DiscordBot-go/bot"
 )
 
 func serverInit() error {
@@ -32,19 +34,24 @@ func serverInit() error {
 
 func requestHandler(conn net.Conn) {
 	reader := bufio.NewReader(conn)
-	coreInfo := &inputInfo{admin: false, user: nil, channel: nil}
-	coreInfo.send = false
+	state, err := bot.New(db, nil)
+	if err != nil {
+		errLog.Println(err)
+		return
+	}
+	state.Admin = false
+	state.Sendmsg = false
 
 	for {
 		fmt.Printf("[%s] > ", time.Now().Format(time.Stamp))
 		input, _ := reader.ReadString('\n')
 		temp := strings.Fields(input)
-		coreInfo.dat = inputText(strings.Join(temp, " "))
+		state.Cmd = inputText(strings.Join(temp, " "))
 		if input == "quit" || input == "exit" {
 			break
 		}
-		if coreInfo.dat.command != "" {
-			err := ioHandler(coreInfo)
+		if state.Cmd.Command != "" {
+			err := ioHandler(state)
 			if err != nil {
 				conn.Write([]byte(err.Error() + "\n"))
 			}

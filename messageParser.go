@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/d0x1p2/DiscordBot-go/bot"
 )
 
 func messageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
@@ -15,7 +16,6 @@ func messageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 		return
 	} else if c.IsPrivate && m.Author.ID != u.ID {
 		dmLog.Printf("--> %s#%s: %s \n", m.Author.Username, m.Author.Discriminator, m.Content)
-		//fmt.Printf("%s#%s: %s \n", m.Author.Username, m.Author.Discriminator, m.Content)
 	}
 	if m.Content == "" || m.Content[0] != ',' {
 		return
@@ -23,17 +23,23 @@ func messageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 		return
 	}
 
-	if sqlBlacklistGET(fmt.Sprintf("%s#%s", m.Author.Username, m.Author.Discriminator)) == true {
+	state, err := bot.New(db, s)
+	if err != nil {
+		return
+	}
+	state.User = m.Author
+	state.Channel = c
+	state.Cmd = inputText(m.Content)
+
+	if state.BlacklistWrapper(fmt.Sprintf("%s#%s", m.Author.Username, m.Author.Discriminator)) == true {
 		return
 	}
 
-	msgInfo := &inputInfo{user: m.Author, channel: c, session: s}
-
-	msgInfo.dat = inputText(m.Content)
-	sndmsg, err := inputParser(msgInfo)
-	if err != nil {
-		sndmsg := err.Error()
-		channel, err := s.UserChannelCreate(msgInfo.user.ID)
+	res := inputParser(state)
+	if res.Err != nil {
+		errLog.Println(res.Err)
+		sndmsg := res.Errmsg
+		channel, err := s.UserChannelCreate(state.User.ID)
 		if err != nil {
 			errLog.Println("could not create PM", err)
 			// Fail silently.
@@ -47,8 +53,8 @@ func messageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 		dmLog.Printf("<-- %s#%s [%s#%s]: %s \n", msg.Author.Username, msg.Author.Discriminator, m.Author.Username, m.Author.Discriminator, msg.Content)
 		//fmt.Printf("%s#%s: %s \n", msg.Author.Username, msg.Author.Discriminator, msg.Content)
 	} else {
-		if sndmsg != "" {
-			_, _ = s.ChannelMessageSend(m.ChannelID, sndmsg)
+		if res.Sndmsg != "" {
+			_, _ = s.ChannelMessageSend(m.ChannelID, res.Sndmsg)
 		}
 	}
 

@@ -6,42 +6,16 @@ import (
 	"fmt"
 	"log"
 	"os"
-
-	"github.com/bwmarrin/discordgo"
 )
 
-const _version = "0.2.0"
-const (
-	cmdADD = 1 << iota
-	cmdMODIFY
-	cmdDELETE
-	cmdEVENT
-	cmdSCRIPT
-	cmdVENDOR
-)
-
-type inputDat struct {
-	text    string
-	command string
-	args    []string
-	length  int
-	attr    int
-}
-
-type inputInfo struct {
-	admin   bool // if user and channel are set- true
-	send    bool // Send data thru channel or send to console.
-	user    *discordgo.User
-	channel *discordgo.Channel
-	dat     *inputDat
-	session *discordgo.Session
-}
+const _version = "0.3.0 - in testing"
 
 var (
 	db     *sql.DB     // SQL database - global
 	errLog *log.Logger // Logs Err information such as SQL - global
-	dmLog  *log.Logger
-	debug  *bool // If debug is enabled
+	dmLog  *log.Logger // DM = PM logger
+	debug  *bool       // If debug is enabled
+
 )
 
 func cleanup() {
@@ -69,7 +43,6 @@ func main() {
 		errLog.Fatal("Error discord opening connection:", err)
 		return
 	}
-	dSession.UpdateStatus(0, "Ultima-Shards: AOS")
 
 	core(dSession)
 
