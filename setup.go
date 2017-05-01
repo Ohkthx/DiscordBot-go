@@ -12,13 +12,18 @@ import (
 func setup(debug bool) *discordgo.Session {
 	var dg *discordgo.Session
 	var err error
+	var dbinfo = "root@/discord"
 
 	err = setupLogger()
 	if err != nil {
 		errLog.Fatal(err)
 	}
 
-	db, err = sql.Open("mysql", "root@/discord")
+	if debug == true {
+		dbinfo = "root@/debug"
+	}
+
+	db, err = sql.Open("mysql", dbinfo)
 	if err != nil {
 		errLog.Fatal(err)
 	}

@@ -24,6 +24,16 @@ const (
 	cmdVENDOR
 )
 
+const (
+	battleEvent = 1 << iota
+	battleCTF
+	battle1v1
+	battle2v2
+	battleGT
+	battleFFA
+	battleColosseum
+)
+
 // Variables to be used for messages.
 var (
 	UNXRes = "Unexpected issue occured. It has been documented. :)"

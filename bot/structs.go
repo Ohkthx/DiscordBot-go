@@ -8,9 +8,11 @@ import (
 
 // Instance is a single instance of a message and it's processing.
 type Instance struct {
-	Admin     bool // if user and channel are set- true
+	Admin     bool // If user and channel are set- true
 	Sendmsg   bool // Send data thru channel or send to console.
 	Streaming bool // If streaming...
+	NotifyB   int  // 1 = 15seconds, 2 = 30seconds, base timeout on ticks.
+	NotifyE   int
 	User      *discordgo.User
 	Channel   *discordgo.Channel
 	Guild     *discordgo.UserGuild
@@ -18,6 +20,8 @@ type Instance struct {
 	Session   *discordgo.Session
 	Database  *sql.DB
 	BG        *Battleground
+	EventChan *discordgo.Channel
+	MainChan  *discordgo.Channel
 }
 
 // Command contains information sent by user
@@ -42,6 +46,7 @@ type Battle struct {
 	//ID    int64
 	MsgID string
 	Name  string
+	Reset int // Counter until resend messages.
 }
 
 // DBError is a wrapper for Error.
@@ -58,4 +63,17 @@ type Response struct {
 	Err    error
 	Sndmsg string
 	Errmsg string
+	Value  int // Used for storing numbers from some functions
+}
+
+// Notifier holds information as what/whom to notify
+type Notifier struct {
+	Type    int
+	Message string
+}
+
+// User data
+type User struct {
+	ID   string
+	Name string
 }

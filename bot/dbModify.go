@@ -207,7 +207,7 @@ func (state *Instance) dbCommandModify() (res *Response) {
 	var modified string
 	switch input.Length {
 	case 2:
-		_, err = db.Exec("UPDATE commands SET text=(?), author_mod=(?), date_mod=Now() WHERE command=(?) arg1 IS NULL", input.Text, whoFull, input.Args[0])
+		_, err = db.Exec("UPDATE commands SET text=(?), author_mod=(?), date_mod=Now() WHERE command=(?) AND arg1 IS NULL", input.Text, whoFull, input.Args[0])
 		modified = fmt.Sprintf("[%s updated]: -> %s", whoFull, input.Args[0])
 	case 3:
 		if input.Attr&cmdEVENT == cmdEVENT || input.Attr&cmdSCRIPT == cmdSCRIPT {

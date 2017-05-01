@@ -19,12 +19,18 @@ func core(session *discordgo.Session) {
 	state, err := bot.New(db, session)
 	if err != nil {
 		errLog.Println(err)
-		return
+		cleanup()
 	}
 	state.Admin = false
 	state.User = nil
 	state.Channel = nil
 	state.Sendmsg = false
+
+	err = state.SetChannels(3)
+	if err != nil {
+		errLog.Println(err)
+		cleanup()
+	}
 
 	go bot.BattlegroundUpdater(state.Database, state.Session)
 

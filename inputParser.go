@@ -10,10 +10,7 @@ import (
 func inputParser(state *bot.Instance) (res *bot.Response) {
 
 	switch state.Cmd.Command {
-	case "events":
-		fallthrough
-	case "event":
-		fallthrough
+
 	case "grant":
 		fallthrough
 	case "add":
@@ -33,9 +30,15 @@ func inputParser(state *bot.Instance) (res *bot.Response) {
 	case "player":
 		fallthrough
 	case "item":
+		fallthrough
+	case "events":
+		fallthrough
+	case "event":
 		res = state.VNCCore()
 	case "version":
 		res = &bot.Response{Err: nil, Errmsg: "", Sndmsg: fmt.Sprintf("version: `%s`", _version)}
+	case "unsubscribe":
+		res = state.NotifyUnsub()
 	default:
 		res = state.DBCore()
 	}

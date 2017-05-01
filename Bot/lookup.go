@@ -80,8 +80,8 @@ func (state *Instance) ChannelExist(name string) (channel *discordgo.Channel, er
 		if err != nil {
 			return
 		}
-
-		_, err = state.Session.ChannelMessageSend(channel.ID, fmt.Sprintf("Messages will be updated within `15 seconds`.\nServer updates `once every minute`.\n"))
+		longStr := "**>----------------------------------------<**"
+		_, err = state.Session.ChannelMessageSend(channel.ID, fmt.Sprintf("Messages will be updated within `15 seconds`.\nServer updates `once every minute`.\n%s", longStr))
 		if err != nil {
 			return
 		}

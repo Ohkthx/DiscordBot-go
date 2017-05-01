@@ -1,12 +1,19 @@
-0.3.9 - Core Rewrite:
+0.3.0 - Core Rewrite:
             Reorganization:
                 - Making `bot` it's own package. With the underlying structure called 'Instance' which just holds
                   all data, DB connections, and Sessions for that particular execution.
         Core Additions:
-            "stream" in the console will now enable and disable streaming. Toggling off set the game playing.
-            Battlegrounds auto updates. Previous commands replaced with a link to #battlegrounds
+            - "stream" in the console will now enable and disable streaming. Toggling off set the game playing.
+            - Battlegrounds auto updates. Previous commands replaced with a link to #battlegrounds
+            - Events auto updates to #battlegrounds
+            - DEBUG SQL table, just a copy of normal table. Requres some manual work to set up.
+            - SUBSCRIPTIONS/Notifications added.
+                - Battles -> sends to main channel when 3 more players are needed. Few minute timeout.
+                - Events  -> Notifies main channel and players who opt in for 1hour/30min updates.
+
         Discord Fixes:
             - "blacklist" had some logic error. Fixed and replaced names with @mentions.
+            - dbProxyLinkDel() had a bad return resulting accessing a nul pointer.
         *Notes:
             - Add reading stream Game Name and URL from config table in SQL. Set configure options from Console.
             - Create all tables if not exist on first launch

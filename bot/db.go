@@ -11,10 +11,6 @@ import (
 func (state *Instance) DBCore() (res *Response) {
 
 	switch state.Cmd.Command {
-	case "events":
-		fallthrough
-	case "event":
-		res = state.dbEvent()
 	case "grant":
 		res = state.dbUserPermissionsAdd()
 	case "add":

@@ -87,7 +87,7 @@ func (state *Instance) dbProxyDelete() (res *Response) {
 	}
 
 	// Perform deletion
-	_, err = db.Exec("DELETE FROM commands WHERE command=(?) AND arg1=(?) AND arg2 IS NULL AND author=(?)", input.Args[0], input.Args[1], whoFull)
+	_, err = db.Exec("DELETE FROM commands WHERE command=(?) AND arg1=(?) AND arg2 IS NULL", input.Args[0], input.Args[1])
 	if err != nil {
 		res = makeResponse(err, "Unable to delete command", "")
 		return
@@ -210,5 +210,6 @@ func (state *Instance) dbProxyLinkDelete(info []string) (res *Response) {
 		return
 	}
 
-	return nil
+	res = makeResponse(nil, "", "")
+	return
 }

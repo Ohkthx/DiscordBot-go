@@ -30,6 +30,10 @@ func messageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 	state.User = m.Author
 	state.Channel = c
 	state.Cmd = inputText(m.Content)
+	err = state.SetChannels(3)
+	if err != nil {
+		errLog.Println(err)
+	}
 
 	if state.BlacklistWrapper(fmt.Sprintf("%s#%s", m.Author.Username, m.Author.Discriminator)) == true {
 		return

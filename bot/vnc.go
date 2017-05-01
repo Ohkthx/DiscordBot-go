@@ -12,6 +12,11 @@ import (
 // VNCCore handles all things that are for Vita-Nex: Core API
 func (state *Instance) VNCCore() (res *Response) {
 	switch state.Cmd.Command {
+	case "event":
+		fallthrough
+	case "events":
+		state.dbNotifyAdd(state.User.ID, state.User.Username)
+		fallthrough
 	case "ctf":
 		res = state.dbBattle()
 	case "online":
@@ -62,7 +67,7 @@ func getMobile(mobileID, request string) (res *Response) {
 	return
 }
 
-func getBattles(instance string) (res *Response) {
+func (state *Instance) getBattles(instance string) (res *Response) {
 
 	var sndmsg string
 
@@ -81,36 +86,56 @@ func getBattles(instance string) (res *Response) {
 	var battle *vncgo.Battle
 	var i int
 
-	if strings.ToLower(instance) == "ctf" {
-		sndmsg = fmt.Sprintf("Capture the Flag:\n```")
-		for n := 0; n < len(battles); n++ {
-			if strings.ToLower(battles[n].Name) == "capture the flag" {
-				battle, err = s.GetBattle(battles[n].ID)
-				if err != nil {
-					res = makeResponse(err, "", "")
-					return
-				}
-				switch strings.ToLower(battle.State) {
-				case "internal":
-				default:
-					if battle.Queued > 0 || len(battle.Players) > 0 {
-						i++
-						sndmsg += fmt.Sprintf("\nCTF #%d:\n  Playing: %d\n  Queue:   %d\n", i, len(battle.Players), battle.Queued)
+	name, err := convBGNameReverse(instance)
+	if err != nil {
+		err = fmt.Errorf("bad requested battle")
+		res = makeResponse(err, err.Error(), "")
+		return
+	}
+
+	var mainUpdate bool
+	var mainText string
+	sndmsg = fmt.Sprintf("%s:\n```", name)
+	for n := 0; n < len(battles); n++ {
+		if strings.ToLower(battles[n].Name) == strings.ToLower(name) {
+			battle, err = s.GetBattle(battles[n].ID)
+			if err != nil {
+				res = makeResponse(err, "", "")
+				return
+			}
+			switch strings.ToLower(battle.State) {
+			case "internal":
+			default:
+				if battle.Queued > 0 || len(battle.Players) > 0 {
+					i++
+					t := battle.Queued + battle.CurCapacity
+					if battle.MinCapacity-3 <= t {
+						// 3 or less from starting.
+						mainUpdate = true
+						mainText += battleNotifyText(i, battle.MaxCapacity, battle.MinCapacity, battle.CurCapacity, battle.Queued)
+
 					}
+					sndmsg += fmt.Sprintf("\nCTF #%2d:\n  Playing: %d\n  Queue:   %d\n", i, len(battle.Players), battle.Queued)
 				}
 			}
 		}
-		sndmsg += "```"
+	}
+	sndmsg += "```\n**>----------------------------------------<**"
 
+	if mainUpdate {
+		// Send notification here
+		if state.NotifyB > 16 {
+			state.NotifyB = 0
+			state.notify(notifyBattle, mainText)
+		}
 	}
 
-	//err = errors.New("no queues found")
 	if i == 0 {
 		name, err := convBGNameReverse(instance)
 		if err != nil {
 			name = "Unknown?"
 		}
-		res = makeResponse(nil, "", fmt.Sprintf("%s: \n```No one in queue.```", name))
+		res = makeResponse(nil, "", fmt.Sprintf("%s: \n```No one in queue.```**>----------------------------------------<**", name))
 		return
 	}
 
@@ -155,17 +180,22 @@ func (state *Instance) checkBG(name string) (res *Response) {
 			return
 		}
 		state.BG = &Battleground{ChannelID: c.ID}
-		// Attempt to load battles here
-		res = state.loadBGDB(name)
-		if res.Err != nil {
-			if res.Err.Error() == "not found" {
-				res = state.loadBGAPIBattle(name)
-				if res.Err != nil {
-					return
-				}
+	}
+
+	// Attempt to load battles here
+	res = state.loadBGDB(name)
+	if res.Err != nil {
+		if res.Err.Error() == "not found" {
+			if name == "event" {
+				res = state.loadBGEvent()
 			} else {
+				res = state.loadBGAPIBattle(name)
+			}
+			if res.Err != nil {
 				return
 			}
+		} else {
+			return
 		}
 	}
 	// Update here.
@@ -196,7 +226,11 @@ func (state *Instance) loadBGDB(name string) (res *Response) {
 	}
 	defer rows.Close()
 
-	name, _ = convBGNameReverse(name)
+	name, err = convBGNameReverse(name)
+	if err != nil {
+		res = makeResponse(err, err.Error(), "")
+		return
+	}
 	name = strings.ToLower(name)
 
 	// Process rows from Db
@@ -330,7 +364,11 @@ func (state *Instance) loadBGAPIBattle(name string) (res *Response) {
 	}
 
 	if name != "" {
-		name, _ = convBGNameReverse(name)
+		name, err = convBGNameReverse(name)
+		if err != nil {
+			res = makeResponse(err, err.Error(), "")
+			return
+		}
 		name = strings.ToLower(name)
 	}
 
@@ -421,12 +459,11 @@ func (state *Instance) editBG(msgType string) (res *Response) {
 	var r *Response
 
 	switch strings.ToLower(msgType) {
-	case "ctf":
-		r = getBattles("ctf")
-	case "events":
-		fallthrough
 	case "event":
-		// Update ability here.
+		r = state.dbEvent()
+		r.Sndmsg += "\n**>----------------------------------------<**"
+	default:
+		r = state.getBattles(msgType)
 		break
 
 	}
@@ -441,7 +478,7 @@ func (state *Instance) editBG(msgType string) (res *Response) {
 			res = makeResponse(err, err.Error(), "")
 			return
 		}
-		if tmp == msgType {
+		if strings.ToLower(tmp) == msgType {
 			s.ChannelMessageEdit(c, p.MsgID, r.Sndmsg)
 			res = makeResponse(nil, "", fmt.Sprintf("Updated %s[%s].", c, p.MsgID))
 			return
@@ -466,6 +503,8 @@ func convBGName(in string) (out string, err error) {
 		out = "colosseum"
 	case "free for all":
 		out = "ffa"
+	case "event":
+		out = "event"
 	default:
 		err = fmt.Errorf("bad BG name")
 	}
@@ -485,6 +524,8 @@ func convBGNameReverse(in string) (out string, err error) {
 		out = "Colosseum"
 	case "ffa":
 		out = "Free for All"
+	case "event":
+		out = "Event"
 	default:
 		err = fmt.Errorf("bad BG name")
 	}
