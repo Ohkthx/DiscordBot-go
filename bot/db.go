@@ -11,6 +11,12 @@ import (
 func (state *Instance) DBCore() (res *Response) {
 
 	switch state.Cmd.Command {
+	case "channel-base":
+		state.procChannel(state.Channel, false)
+		res = makeResponse(nil, "", "")
+	case "channel-update":
+		state.procChannel(state.Channel, true)
+		res = makeResponse(nil, "", "")
 	case "grant":
 		res = state.dbUserPermissionsAdd()
 	case "add":

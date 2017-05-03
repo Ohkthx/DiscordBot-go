@@ -23,7 +23,7 @@ func messageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 		return
 	}
 
-	state, err := bot.New(db, s)
+	state := bot.New(db, s)
 	if err != nil {
 		return
 	}

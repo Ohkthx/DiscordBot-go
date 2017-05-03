@@ -11,8 +11,13 @@ type Instance struct {
 	Admin     bool // If user and channel are set- true
 	Sendmsg   bool // Send data thru channel or send to console.
 	Streaming bool // If streaming...
-	NotifyB   int  // 1 = 15seconds, 2 = 30seconds, base timeout on ticks.
-	NotifyE   int
+	//NotifyB      int  // 1 = 15seconds, 2 = 30seconds, base timeout on ticks.
+	//BattleNotify bool
+	//NotifyE      int
+	//EventNotify  bool
+	Event     *Notifier
+	Battle    *Notifier
+	Cooldown  int // Ticks till send another message.
 	User      *discordgo.User
 	Channel   *discordgo.Channel
 	Guild     *discordgo.UserGuild
@@ -38,11 +43,11 @@ type Battleground struct {
 	// ChannelID is the ID of #battlegrounds
 	ChannelID string
 	// Battles is an array containing all current battles running.
-	Battles []Battle
+	Battles []BattleID
 }
 
-// Battle contains the ID, Message ID (to edit), and Name of the battle.
-type Battle struct {
+// BattleID contains the ID, Message ID (to edit), and Name of the battle.
+type BattleID struct {
 	//ID    int64
 	MsgID string
 	Name  string
@@ -68,8 +73,10 @@ type Response struct {
 
 // Notifier holds information as what/whom to notify
 type Notifier struct {
-	Type    int
-	Message string
+	Type     int
+	Tick     int
+	Notified bool
+	Msg      *discordgo.Message
 }
 
 // User data

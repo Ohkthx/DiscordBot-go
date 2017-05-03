@@ -11,12 +11,10 @@ import (
 
 // BattlegroundUpdater will continuously update #battlegrounds
 func BattlegroundUpdater(db *sql.DB, session *discordgo.Session) {
-
-	s, err := New(db, session)
-	if err != nil {
-		log.Println(err)
-		return
-	}
+	var err error
+	s := New(db, session)
+	s.Battle = NewNotifier(notifyBattle)
+	s.Event = NewNotifier(notifyEvent)
 
 	err = s.SetChannels(3)
 	if err != nil {
@@ -38,8 +36,7 @@ func BattlegroundUpdater(db *sql.DB, session *discordgo.Session) {
 	for {
 		c := time.Tick(15 * time.Second)
 		for now := range c {
-			s.NotifyB++ // Increment Battle and Event ticks.
-			s.NotifyE++
+			s.updateMaintain()
 
 			s.UpdateHandler(battleEvent|battleCTF, now)
 			if res.Err != nil {

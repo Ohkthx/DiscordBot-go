@@ -11,12 +11,41 @@ const (
 )
 
 // NewNotifier creates a new instance of Notifier and returns a pointer to it.
-func NewNotifier(t int, message string) (n *Notifier, err error) {
+func NewNotifier(t int) (n *Notifier) {
 	n = &Notifier{
-		Type:    t,
-		Message: message,
+		Type: t,
+		Tick: 40,
 	}
 	return
+}
+
+// Reset just makes it back to default.
+func (n *Notifier) Reset() {
+	n.Tick = 0
+	n.Msg = nil
+	n.Notified = false
+}
+
+func (state *Instance) updateMaintain() {
+	if state.Event.Tick > state.Cooldown {
+		if state.Event.Tick > 240 {
+			state.Event.Msg = nil
+			state.Event.Tick = 0
+		}
+		state.Event.Notified = true
+	} else {
+		state.Event.Tick++
+	}
+
+	if state.Battle.Tick > state.Cooldown {
+		if state.Battle.Tick > 240 {
+			state.Battle.Msg = nil
+			state.Battle.Tick = 0
+		}
+		state.Battle.Notified = true
+	} else {
+		state.Battle.Tick++
+	}
 }
 
 func (state *Instance) notify(t int, message string) (err error) {
@@ -29,7 +58,7 @@ func (state *Instance) notify(t int, message string) (err error) {
 			return
 		}
 		for _, u := range users {
-			err = state.notifyUserSend(u.ID, u.Name, message, false)
+			err = state.notifyUserSend(u.ID, message, false)
 			if err != nil {
 				return
 			}
@@ -37,7 +66,7 @@ func (state *Instance) notify(t int, message string) (err error) {
 		_, err = s.ChannelMessageSend(state.MainChan.ID, message)
 		return
 	case t&notifyBattle == notifyBattle:
-		_, err = s.ChannelMessageSend(state.MainChan.ID, message)
+		state.Battle.Msg, err = s.ChannelMessageSend(state.MainChan.ID, message)
 		return
 	default:
 		err = fmt.Errorf("unknown object(s) to notify")
@@ -72,7 +101,7 @@ func (state *Instance) dbNotifyAdd(id, name string) (err error) {
 	var res sql.NullString
 	var sub sql.NullBool
 
-	err = db.QueryRow("SELECT name, sub FROM subscriptions WHERE id=(?)", id).Scan(&res, &sub)
+	err = db.QueryRow("SELECT id, sub FROM subscriptions WHERE id=(?)", id).Scan(&res, &sub)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			// No rows, attempt an add.
@@ -84,7 +113,7 @@ func (state *Instance) dbNotifyAdd(id, name string) (err error) {
 	if res.Valid && sub.Valid {
 		// Exists already
 		if sub.Bool == false {
-			_, err = db.Query("UPDATE subscriptions SET sub=true WHERE id=(?)", id)
+			_, err = db.Query("UPDATE subscriptions SET name=(?),sub=true WHERE id=(?)", name, id)
 		}
 		return
 	}
@@ -117,11 +146,11 @@ func (state *Instance) dbNotifyUnsub(id string) (err error) {
 	if err != nil {
 		return
 	}
-	err = state.notifyUserSend(id, "", "", true)
+	err = state.notifyUserSend(id, "", true)
 	return
 }
 
-func (state *Instance) notifyUserSend(id, name, info string, unsub bool) (err error) {
+func (state *Instance) notifyUserSend(id, info string, unsub bool) (err error) {
 	s := state.Session
 
 	channel, err := s.UserChannelCreate(id)
@@ -132,7 +161,7 @@ func (state *Instance) notifyUserSend(id, name, info string, unsub bool) (err er
 	var subtxt string
 	if unsub == false {
 		usubtxt := fmt.Sprintf("If you wish to unsubscribe from these alerts, type:\n`,unsubscribe`")
-		subtxt = fmt.Sprintf("Automated subscription services for %s:```%s```%s", name, info, usubtxt)
+		subtxt = fmt.Sprintf("Automated subscription services:```%s```%s", info, usubtxt)
 	} else {
 		subtxt = fmt.Sprintf("You have successfully unsubscribed! If you wish to resubscribe use:\n`,event` or `,events`")
 	}

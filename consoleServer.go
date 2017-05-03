@@ -13,7 +13,7 @@ import (
 func serverInit() error {
 	listener, err := net.Listen("tcp", "localhost:8411")
 	if err != nil {
-		errLog.Println("could not start lsitener", err)
+		errLog.Println("could not start listener", err)
 		return err
 	}
 
@@ -34,11 +34,7 @@ func serverInit() error {
 
 func requestHandler(conn net.Conn) {
 	reader := bufio.NewReader(conn)
-	state, err := bot.New(db, nil)
-	if err != nil {
-		errLog.Println(err)
-		return
-	}
+	state := bot.New(db, nil)
 	state.Admin = false
 	state.Sendmsg = false
 

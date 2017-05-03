@@ -1,3 +1,13 @@
+0.3.1 - Core Additions:
+            - Instance.Cooldown (int)  <= Amount of ticks to wait till reprocessing notification/subscription.
+            - Notifier struct now being used. Storing local information pretaining to that particular notification.
+            - Battle notifications update a singular message. UNTIL a 1 hour timeout is reached, queue is 0, or game starts.
+        Core Fixes:
+            - Typo for listening error (normally encountered when running 2 bots on same computer)
+            - UTF-8 support for putting commands into Database.
+            - Renabled processing all messages in a particular channel (used for populating past subscriptions)
+            - Removed "err" from creating new instances and notifiers
+
 0.3.0 - Core Rewrite:
             Reorganization:
                 - Making `bot` it's own package. With the underlying structure called 'Instance' which just holds
@@ -10,7 +20,6 @@
             - SUBSCRIPTIONS/Notifications added.
                 - Battles -> sends to main channel when 3 more players are needed. Few minute timeout.
                 - Events  -> Notifies main channel and players who opt in for 1hour/30min updates.
-
         Discord Fixes:
             - "blacklist" had some logic error. Fixed and replaced names with @mentions.
             - dbProxyLinkDel() had a bad return resulting accessing a nul pointer.

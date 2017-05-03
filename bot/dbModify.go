@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -101,6 +102,10 @@ func (state *Instance) procChannel(channel *discordgo.Channel, update bool) (cou
 						err = dberr.Err
 						count = 0
 					}
+				}
+				if strings.Contains(m.Content, ",event") {
+					state.dbNotifyAdd(m.Author.ID, m.Author.Username)
+					fmt.Printf("Added: %s[%s]\n", m.Author.Username, m.Author.ID)
 				}
 			}
 			count++

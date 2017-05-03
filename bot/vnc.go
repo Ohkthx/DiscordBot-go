@@ -109,13 +109,37 @@ func (state *Instance) getBattles(instance string) (res *Response) {
 				if battle.Queued > 0 || len(battle.Players) > 0 {
 					i++
 					t := battle.Queued + battle.CurCapacity
-					if battle.MinCapacity-3 <= t {
+					if t >= battle.MinCapacity-3 && strings.ToLower(battle.State) != "running" {
 						// 3 or less from starting.
 						mainUpdate = true
-						mainText += battleNotifyText(i, battle.MaxCapacity, battle.MinCapacity, battle.CurCapacity, battle.Queued)
-
+						mainText += state.battleNotifyText(i, battle)
+					} else if t == 0 && strings.ToLower(battle.State) != "running" && state.Battle.Msg != nil {
+						_, err = state.Session.ChannelMessageEdit(state.Battle.Msg.ChannelID, state.Battle.Msg.ID, fmt.Sprintf("```CTF #%2d: Everyone left queue.```", i))
+						if err != nil {
+							state.Battle.Reset()
+							res = makeResponse(err, err.Error(), "")
+							return
+						}
+						state.Battle.Reset()
+					} else if t < battle.MinCapacity && strings.ToLower(battle.State) != "running" && state.Battle.Msg != nil {
+						mainUpdate = true
+						mainText += state.battleNotifyText(i, battle)
+					} else if strings.ToLower(battle.State) == "running" && state.Battle.Msg != nil {
+						if state.MainChan != nil {
+							var xtxt string
+							if battle.MaxCapacity-battle.CurCapacity > 0 {
+								xtxt = fmt.Sprintf("%d more players can join.", battle.MaxCapacity-battle.CurCapacity)
+							}
+							_, err = state.Session.ChannelMessageSend(state.MainChan.ID, fmt.Sprintf("```CTF #%d has started with %d players.\n%s```", i, battle.CurCapacity, xtxt))
+							if err != nil {
+								state.Battle.Reset()
+								res = makeResponse(err, err.Error(), "")
+								return
+							}
+							state.Battle.Reset()
+						}
 					}
-					sndmsg += fmt.Sprintf("\nCTF #%2d:\n  Playing: %d\n  Queue:   %d\n", i, len(battle.Players), battle.Queued)
+					sndmsg += battleEventText(i, battle)
 				}
 			}
 		}
@@ -124,8 +148,10 @@ func (state *Instance) getBattles(instance string) (res *Response) {
 
 	if mainUpdate {
 		// Send notification here
-		if state.NotifyB > 16 {
-			state.NotifyB = 0
+		if state.Battle.Notified && state.Battle.Msg != nil {
+			state.Session.ChannelMessageEdit(state.Battle.Msg.ChannelID, state.Battle.Msg.ID, mainText)
+		} else if state.Battle.Notified {
+			//state.Battle.Notified = false
 			state.notify(notifyBattle, mainText)
 		}
 	}
@@ -248,7 +274,7 @@ func (state *Instance) loadBGDB(name string) (res *Response) {
 						return
 					}
 				}
-				state.BG.Battles = append(state.BG.Battles, Battle{MsgID: sqlMsgID.String, Name: sqlName.String})
+				state.BG.Battles = append(state.BG.Battles, BattleID{MsgID: sqlMsgID.String, Name: sqlName.String})
 				res = makeResponse(nil, "", "Loaded from DB")
 				return
 			} else if name == "" {
@@ -262,7 +288,7 @@ func (state *Instance) loadBGDB(name string) (res *Response) {
 				if exists {
 					continue
 				}
-				state.BG.Battles = append(state.BG.Battles, Battle{MsgID: sqlMsgID.String, Name: sqlName.String})
+				state.BG.Battles = append(state.BG.Battles, BattleID{MsgID: sqlMsgID.String, Name: sqlName.String})
 			}
 		}
 	}
@@ -278,7 +304,7 @@ func (state *Instance) loadBGDB(name string) (res *Response) {
 }
 
 func (state *Instance) loadBGAPI(name string) (res *Response) {
-	var battles []Battle
+	var battles []BattleID
 	var c *discordgo.Channel
 	var err error
 
@@ -324,7 +350,7 @@ func (state *Instance) loadBGAPI(name string) (res *Response) {
 			continue
 		}
 
-		battles = append(battles, Battle{MsgID: m.ID, Name: b.Name})
+		battles = append(battles, BattleID{MsgID: m.ID, Name: b.Name})
 	}
 
 	state.BG.Battles = battles
@@ -390,7 +416,7 @@ func (state *Instance) loadBGAPIBattle(name string) (res *Response) {
 					res = makeResponse(err, err.Error(), "")
 					return
 				}
-				state.BG.Battles = append(state.BG.Battles, Battle{MsgID: m.ID, Name: b.Name})
+				state.BG.Battles = append(state.BG.Battles, BattleID{MsgID: m.ID, Name: b.Name})
 				res = state.dbBGSave()
 				if res.Err != nil {
 					return
@@ -423,7 +449,7 @@ func (state *Instance) loadBGAPIBattle(name string) (res *Response) {
 			continue
 		}
 
-		state.BG.Battles = append(state.BG.Battles, Battle{MsgID: m.ID, Name: b.Name})
+		state.BG.Battles = append(state.BG.Battles, BattleID{MsgID: m.ID, Name: b.Name})
 	}
 
 	// Save to SQL to prevent lookups.

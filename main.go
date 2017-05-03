@@ -8,7 +8,7 @@ import (
 	"os"
 )
 
-const _version = "0.3.0 - in testing"
+const _version = "0.3.1 - in testing"
 
 var (
 	db     *sql.DB     // SQL database - global

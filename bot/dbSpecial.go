@@ -126,14 +126,14 @@ func (state *Instance) dbEvent() (res *Response) {
 		}
 
 		if hour == 1 && min == 0 {
-			if state.NotifyE > 10 {
-				state.NotifyE = 0
+			if state.Event.Notified {
+				state.Event.Notified = false
 				// 1 hour notification
 				state.notify(notifyEvent, "This is your 1 hour notification for an event!")
 			}
 		} else if hour == 0 && min == 30 {
-			if state.NotifyE > 10 {
-				state.NotifyE = 0
+			if state.Event.Notified {
+				state.Event.Notified = false
 				// 30min notification
 				state.notify(notifyEvent, "This is your 30minute notification for an event!")
 			}
@@ -382,7 +382,7 @@ func (state *Instance) loadBGEvent() (res *Response) {
 	}
 
 	if found == false {
-		state.BG.Battles = append(state.BG.Battles, Battle{MsgID: m.ID, Name: "event"})
+		state.BG.Battles = append(state.BG.Battles, BattleID{MsgID: m.ID, Name: "event"})
 	}
 
 	res = makeResponse(nil, "", "Loaded and saved.")

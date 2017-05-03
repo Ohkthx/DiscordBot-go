@@ -40,10 +40,11 @@ var (
 )
 
 // New creates a new instance to be used. Return pointer.
-func New(db *sql.DB, dg *discordgo.Session) (s *Instance, err error) {
+func New(db *sql.DB, dg *discordgo.Session) (s *Instance) {
 	s = &Instance{
 		Database: db,
 		Session:  dg,
+		Cooldown: 24,
 	}
 	return
 }

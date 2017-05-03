@@ -23,7 +23,7 @@ func setup(debug bool) *discordgo.Session {
 		dbinfo = "root@/debug"
 	}
 
-	db, err = sql.Open("mysql", dbinfo)
+	db, err = sql.Open("mysql", dbinfo+"?charset=utf8")
 	if err != nil {
 		errLog.Fatal(err)
 	}

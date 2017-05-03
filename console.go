@@ -16,15 +16,12 @@ import (
 
 func core(session *discordgo.Session) {
 	// Main loop for processing user input to console.
-	state, err := bot.New(db, session)
-	if err != nil {
-		errLog.Println(err)
-		cleanup()
-	}
+	state := bot.New(db, session)
 	state.Admin = false
 	state.User = nil
 	state.Channel = nil
 	state.Sendmsg = false
+	var err error
 
 	err = state.SetChannels(3)
 	if err != nil {
@@ -61,19 +58,13 @@ func ioHandler(state *bot.Instance) (err error) {
 	//var sndmsg string
 
 	switch input.Command {
-	/*case "ch-base":
-		sndmsg, err = state.DBCore("channels", bot.Add)
-		if err != nil {
-			return
-		}
-		log.Printf(sndmsg)
+	case "ch-base":
+		fallthrough
 	case "ch-update":
-		sndmsg, err = state.DBCore("channels", bot.Modify)
-		if err != nil {
+		res := state.DBCore()
+		if res.Err != nil {
 			return
 		}
-		log.Printf(sndmsg)
-	*/
 	case "update":
 		res := state.VNCCore()
 		if res.Err != nil {
