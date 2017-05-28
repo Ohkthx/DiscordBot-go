@@ -77,8 +77,10 @@ func (state *Instance) UpdateHandler(battles int, ctime time.Time) (res *Respons
 			res = makeResponse(err, err.Error(), "")
 			return
 		}
-		if res.Err != nil {
-			return
+		if res != nil {
+			if res.Err != nil {
+				return
+			}
 		}
 	}
 

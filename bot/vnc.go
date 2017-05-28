@@ -166,7 +166,6 @@ func (state *Instance) getBattles(instance string) (res *Response) {
 	}
 
 	res = makeResponse(nil, "", sndmsg)
-
 	return
 }
 
@@ -495,6 +494,7 @@ func (state *Instance) editBG(msgType string) (res *Response) {
 	}
 
 	if r.Err != nil {
+		res = r
 		return
 	}
 

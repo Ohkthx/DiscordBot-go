@@ -1,3 +1,9 @@
+0.3.2 - Core Additions:
+            - "roll" to get a roll for a dice game.
+            - "ban" to ban users. Checks for adding permissions.
+        Core Fixes:
+            - Accessing NIL pointer crashing application in updateHandler(), Added small changes to attempt to fix.
+
 0.3.1 - Core Additions:
             - Instance.Cooldown (int)  <= Amount of ticks to wait till reprocessing notification/subscription.
             - Notifier struct now being used. Storing local information pretaining to that particular notification.

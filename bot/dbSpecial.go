@@ -2,8 +2,10 @@ package bot
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
+	"math/rand"
 	"strconv"
 	"strings"
 	"time"
@@ -127,15 +129,15 @@ func (state *Instance) dbEvent() (res *Response) {
 
 		if hour == 1 && min == 0 {
 			if state.Event.Notified {
-				state.Event.Notified = false
 				// 1 hour notification
 				state.notify(notifyEvent, "This is your 1 hour notification for an event!")
+				state.Event.Reset()
 			}
 		} else if hour == 0 && min == 30 {
 			if state.Event.Notified {
-				state.Event.Notified = false
 				// 30min notification
 				state.notify(notifyEvent, "This is your 30minute notification for an event!")
+				state.Event.Reset()
 			}
 		}
 
@@ -518,5 +520,74 @@ func (state *Instance) SetChannels(chann int) (err error) {
 		}
 	}
 
+	return
+}
+
+func (state *Instance) dbRoll() (res *Response) {
+	var roll1, roll2 int
+	s := rand.NewSource(time.Now().UnixNano())
+	r := rand.New(s)
+	roll1 = r.Intn(6) + 1
+	roll2 = r.Intn(6) + 1
+
+	msg := fmt.Sprintf("```*%s rolls %d, %d*```", state.User.Username, roll1, roll2)
+
+	// Prevention from attempting access of null pointer from console.
+	if state.Message != nil {
+		state.Session.ChannelMessageDelete(state.Channel.ID, state.Message.ID)
+	}
+
+	res = makeResponse(nil, "", msg)
+	return
+}
+
+func (state *Instance) dbUserBanSoft() (res *Response) {
+	//s := state.Session
+	who := state.User
+
+	if state.dbUserPermissions(who.ID) == false {
+		err := errors.New("you do not have permissions to do that")
+		res = makeResponse(err, err.Error(), "")
+		return
+	}
+
+	if state.Cmd.Length < 1 {
+		res = makeResponse(fmt.Errorf("not enough arguments"), "not enough arguments", "")
+		return
+	}
+	//
+	// Store in SQL, maybe use Blacklist db
+	res = makeResponse(nil, "", "")
+	return
+}
+
+func (state *Instance) dbUserBan() (res *Response) {
+	s := state.Session
+	who := state.User
+
+	if state.dbUserPermissions(who.ID) == false {
+		err := errors.New("you do not have permissions to do that")
+		res = makeResponse(err, err.Error(), "")
+		return
+	}
+
+	if state.Cmd.Length < 1 {
+		res = makeResponse(fmt.Errorf("not enough arguments"), "not enough arguments", "")
+		return
+	}
+
+	user, err := state.UserFind(state.Cmd.Args[0])
+	if err != nil {
+		res = makeResponse(err, "", "")
+		return
+	}
+
+	err = s.GuildBanCreate(state.MainChan.GuildID, user.ID, 1)
+	if err != nil {
+		res = makeResponse(err, "", "")
+		return
+	}
+
+	res = makeResponse(nil, "", fmt.Sprintf("RIP %s. :frowning:", user.Username))
 	return
 }

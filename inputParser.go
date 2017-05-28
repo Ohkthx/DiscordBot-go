@@ -39,6 +39,8 @@ func inputParser(state *bot.Instance) (res *bot.Response) {
 		res = &bot.Response{Err: nil, Errmsg: "", Sndmsg: fmt.Sprintf("version: `%s`", _version)}
 	case "unsubscribe":
 		res = state.NotifyUnsub()
+	case "roll":
+		res = state.DBCore()
 	default:
 		res = state.DBCore()
 	}

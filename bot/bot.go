@@ -44,7 +44,7 @@ func New(db *sql.DB, dg *discordgo.Session) (s *Instance) {
 	s = &Instance{
 		Database: db,
 		Session:  dg,
-		Cooldown: 24,
+		Cooldown: 40,
 	}
 	return
 }

@@ -29,6 +29,12 @@ func (state *Instance) DBCore() (res *Response) {
 		res = state.dbUserBlacklist()
 	case "report":
 		res = state.dbUserReport()
+	case "ban":
+		res = state.dbUserBan()
+	case "rolls":
+		fallthrough
+	case "roll":
+		res = state.dbRoll()
 	default:
 		res = state.dbSearch(state.Cmd.Length + 1)
 	}

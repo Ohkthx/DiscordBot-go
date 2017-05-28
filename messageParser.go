@@ -29,6 +29,7 @@ func messageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 	}
 	state.User = m.Author
 	state.Channel = c
+	state.Message = m
 	state.Cmd = inputText(m.Content)
 	err = state.SetChannels(3)
 	if err != nil {

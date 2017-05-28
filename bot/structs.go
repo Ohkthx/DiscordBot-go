@@ -19,6 +19,7 @@ type Instance struct {
 	Battle    *Notifier
 	Cooldown  int // Ticks till send another message.
 	User      *discordgo.User
+	Message   *discordgo.MessageCreate
 	Channel   *discordgo.Channel
 	Guild     *discordgo.UserGuild
 	Cmd       *Command
