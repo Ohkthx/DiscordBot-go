@@ -1,3 +1,14 @@
+0.3.3 - Core Additions:
+            - BattlegroundsUpdater renamed to EventsUpdater, with that- all #battlegrounds are now #events
+            - New source file for storing miscellaneous functions- tool.go
+              Will be moving several functions to this source overtime for better organization.
+            - Several Error constants added to make errors easier to check.
+            - Constants for long messages such as line breaks.
+        Core Fixes:
+            - Made changes to accommodate the discord API update which resulted in several changed functions.
+            - Rewrote most of the Channel Updating procedures (Events/VNC updates.)
+            - Renamed and Removed several older functions.
+
 0.3.2 - Core Additions:
             - "roll" to get a roll for a dice game.
             - "ban" to ban users. Checks for adding permissions.

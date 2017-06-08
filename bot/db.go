@@ -1,12 +1,5 @@
 package bot
 
-import (
-	"fmt"
-	"strings"
-
-	"github.com/bwmarrin/discordgo"
-)
-
 // DBCore will handle all SQL DB interactions.
 func (state *Instance) DBCore() (res *Response) {
 
@@ -40,13 +33,4 @@ func (state *Instance) DBCore() (res *Response) {
 	}
 
 	return res
-}
-
-func tsConvert(ts discordgo.Timestamp) string {
-	a := strings.FieldsFunc(fmt.Sprintf("%s", ts), tsSplit)
-	return fmt.Sprintf("%s %s", a[0], a[1])
-}
-
-func tsSplit(r rune) bool {
-	return r == 'T' || r == '.' || r == '+'
 }

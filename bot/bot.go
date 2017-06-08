@@ -24,19 +24,11 @@ const (
 	cmdVENDOR
 )
 
-const (
-	battleEvent = 1 << iota
-	battleCTF
-	battle1v1
-	battle2v2
-	battleGT
-	battleFFA
-	battleColosseum
-)
-
-// Variables to be used for messages.
+// Variables to be used for messages and channels.
 var (
-	UNXRes = "Unexpected issue occured. It has been documented. :)"
+	UpdateChannel = "events"
+	UNXRes        = "Unexpected issue occured. It has been documented. :)"
+	MSGDIV        = "~~**>----------------------------------------<**~~"
 )
 
 // New creates a new instance to be used. Return pointer.

@@ -71,7 +71,7 @@ func (state *Instance) procChannel(channel *discordgo.Channel, update bool) (cou
 			beforeID = lastID
 			afterID = ""
 		}
-		msgs, err = s.ChannelMessages(c.ID, 100, beforeID, afterID)
+		msgs, err = s.ChannelMessages(c.ID, 100, beforeID, afterID, "")
 		if err != nil {
 			break
 		}

@@ -43,7 +43,7 @@ func (state *Instance) UserFind(userbase string) (user *discordgo.User, err erro
 func (state *Instance) ChannelFind(name string) (channel *discordgo.Channel, err error) {
 	session := state.Session
 	var channels []*discordgo.Channel
-	guilds, err := session.UserGuilds()
+	guilds, err := session.UserGuilds(100, "", "")
 	if err != nil {
 		err = fmt.Errorf("could not get server info")
 		return
@@ -76,12 +76,11 @@ func (state *Instance) ChannelExist(name string) (channel *discordgo.Channel, er
 		if err.Error() != "no channels found" {
 			return
 		}
-		channel, err = s.GuildChannelCreate(state.Guild.ID, "battlegrounds", "text")
+		channel, err = s.GuildChannelCreate(state.Guild.ID, "events", "text")
 		if err != nil {
 			return
 		}
-		longStr := "**>----------------------------------------<**"
-		_, err = state.Session.ChannelMessageSend(channel.ID, fmt.Sprintf("Messages will be updated within `15 seconds`.\nServer updates `once every minute`.\n%s", longStr))
+		_, err = state.Session.ChannelMessageSend(channel.ID, fmt.Sprintf("Messages will be updated within `15 seconds`.\nServer updates `once every minute`.\n%s", MSGDIV))
 		if err != nil {
 			return
 		}

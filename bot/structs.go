@@ -4,6 +4,7 @@ import (
 	"database/sql"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/d0x1p2/vncgo"
 )
 
 // Instance is a single instance of a message and it's processing.
@@ -15,19 +16,20 @@ type Instance struct {
 	//BattleNotify bool
 	//NotifyE      int
 	//EventNotify  bool
-	Event     *Notifier
-	Battle    *Notifier
-	Cooldown  int // Ticks till send another message.
-	User      *discordgo.User
-	Message   *discordgo.MessageCreate
-	Channel   *discordgo.Channel
-	Guild     *discordgo.UserGuild
-	Cmd       *Command
-	Session   *discordgo.Session
-	Database  *sql.DB
-	BG        *Battleground
-	EventChan *discordgo.Channel
-	MainChan  *discordgo.Channel
+	EventNotifier  *Notifier
+	BattleNotifier *Notifier
+	Battles        []*vncgo.Battle
+	Cooldown       int // Ticks till send another message.
+	User           *discordgo.User
+	Message        *discordgo.MessageCreate
+	Channel        *discordgo.Channel
+	Guild          *discordgo.UserGuild
+	Cmd            *Command
+	Session        *discordgo.Session
+	Database       *sql.DB
+	Events         *Events
+	EventChan      *discordgo.Channel
+	MainChan       *discordgo.Channel
 }
 
 // Command contains information sent by user
@@ -39,9 +41,9 @@ type Command struct {
 	Attr    int
 }
 
-// Battleground is a single instance of the #battlegrounds channel
-type Battleground struct {
-	// ChannelID is the ID of #battlegrounds
+// Events is a single instance of the #events channel
+type Events struct {
+	// ChannelID is the ID of #events
 	ChannelID string
 	// Battles is an array containing all current battles running.
 	Battles []BattleID
@@ -49,7 +51,7 @@ type Battleground struct {
 
 // BattleID contains the ID, Message ID (to edit), and Name of the battle.
 type BattleID struct {
-	//ID    int64
+	Type  string
 	MsgID string
 	Name  string
 	Reset int // Counter until resend messages.

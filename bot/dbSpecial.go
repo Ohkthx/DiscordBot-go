@@ -28,7 +28,7 @@ func (state *Instance) dbBattle() (res *Response) {
 	}
 
 	// Create initial message.
-	c, err := state.ChannelFind("battlegrounds")
+	c, err := state.ChannelFind(UpdateChannel)
 	if err != nil {
 		res = makeResponse(err, "", "")
 		return
@@ -47,7 +47,7 @@ func (state *Instance) dbEvent() (res *Response) {
 	now := time.Now()
 	retText = "Events Coming Soon\n```"
 
-	rows, err := db.Query("SELECT weekday, time FROM events")
+	rows, err := db.Query("SELECT weekday, time FROM event_timer")
 	if err != nil {
 		res = makeResponse(err, "Could not get events.", "")
 		return
@@ -128,16 +128,16 @@ func (state *Instance) dbEvent() (res *Response) {
 		}
 
 		if hour == 1 && min == 0 {
-			if state.Event.Notified {
+			if state.EventNotifier.Notified {
 				// 1 hour notification
 				state.notify(notifyEvent, "This is your 1 hour notification for an event!")
-				state.Event.Reset()
+				state.EventNotifier.Reset()
 			}
 		} else if hour == 0 && min == 30 {
-			if state.Event.Notified {
+			if state.EventNotifier.Notified {
 				// 30min notification
 				state.notify(notifyEvent, "This is your 30minute notification for an event!")
-				state.Event.Reset()
+				state.EventNotifier.Reset()
 			}
 		}
 
@@ -158,11 +158,11 @@ func (state *Instance) dbEvent() (res *Response) {
 	}
 
 	retText = strings.Trim(retText, " \n")
-	var checktxt = "#events"
+	/*var checktxt = "#events"
 	if state.EventChan != nil {
 		checktxt = "<#" + state.EventChan.ID + ">"
-	}
-	res = makeResponse(nil, "", retText+"```check "+checktxt)
+	}*/
+	res = makeResponse(nil, "", retText+"```") //check "+checktxt)
 	return
 }
 
@@ -352,45 +352,6 @@ func (state *Instance) dbUserReport() (res *Response) {
 	return
 }
 
-func (state *Instance) loadBGEvent() (res *Response) {
-	c, err := state.ChannelFind("battlegrounds")
-	if err != nil {
-		res = makeResponse(err, err.Error(), "")
-		return
-	}
-
-	m, err := state.Session.ChannelMessageSend(c.ID, "``` [PlaceHolder] ```")
-	if err != nil {
-		res = makeResponse(err, err.Error(), "")
-		return
-	}
-
-	// Save to SQL to prevent lookups.
-	db := state.Database
-
-	_, err = db.Exec("INSERT INTO battlegrounds (msgid, name) VALUES (?, ?)", m.ID, "event")
-	if err != nil {
-		res = makeResponse(err, err.Error(), "")
-		return
-	}
-
-	var found bool
-	if len(state.BG.Battles) > 0 {
-		for _, p := range state.BG.Battles {
-			if p.Name == "event" {
-				found = true
-			}
-		}
-	}
-
-	if found == false {
-		state.BG.Battles = append(state.BG.Battles, BattleID{MsgID: m.ID, Name: "event"})
-	}
-
-	res = makeResponse(nil, "", "Loaded and saved.")
-	return
-}
-
 func (state *Instance) dbGetChannel(name string) (res *Response) {
 	db := state.Database
 	session := state.Session
@@ -444,7 +405,7 @@ func (state *Instance) LoadChannel(chanType int) (res *Response, bad int) {
 }
 
 // SaveChannel stores channel info into Database
-func (state *Instance) SaveChannel(name string) (res *Response) {
+func (state *Instance) dbSaveChannel(name string) (res *Response) {
 	db := state.Database
 	res = state.dbGetChannel(name)
 	var err error
@@ -493,13 +454,14 @@ func (state *Instance) SaveChannel(name string) (res *Response) {
 // Sets main and Event channels.
 func (state *Instance) SetChannels(chann int) (err error) {
 	r, b := state.LoadChannel(chann)
+	// If the channel doesn't exist (b is an integer with channels not loaded.)
 	if r.Err != nil && b&1 == 1 {
-		state.MainChan, err = state.ChannelFind("multiverse")
+		state.MainChan, err = state.ChannelFind("multiverse") // ChannelFind
 		if err != nil {
 			log.Println("Error loading channel:", err.Error())
 			return
 		}
-		r = state.SaveChannel("main")
+		r = state.dbSaveChannel("main")
 		if err != nil {
 			log.Println("Error saving channel:", err.Error())
 			return
@@ -508,12 +470,12 @@ func (state *Instance) SetChannels(chann int) (err error) {
 	//
 	if r.Err != nil && b&2 == 2 {
 		// EVENTS CHANNEL HERE
-		state.EventChan, err = state.ChannelFind("events")
+		state.EventChan, err = state.ChannelExist("events") //ChannelFind
 		if err != nil {
 			log.Println("Error loading channel:", err.Error())
 			return
 		}
-		r = state.SaveChannel("event")
+		r = state.dbSaveChannel("event")
 		if err != nil {
 			log.Println("Error saving channel:", err.Error())
 			return

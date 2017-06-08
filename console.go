@@ -29,7 +29,7 @@ func core(session *discordgo.Session) {
 		cleanup()
 	}
 
-	go bot.BattlegroundUpdater(state.Database, state.Session)
+	go bot.EventsUpdater(state.Database, state.Session)
 
 	time.Sleep(150 * time.Millisecond)
 	reader := bufio.NewReader(os.Stdin)

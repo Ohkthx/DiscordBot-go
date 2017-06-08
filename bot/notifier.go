@@ -27,24 +27,26 @@ func (n *Notifier) Reset() {
 }
 
 func (state *Instance) updateMaintain() {
-	if state.Event.Tick > state.Cooldown {
-		if state.Event.Tick > 240 {
-			state.Event.Msg = nil
-			state.Event.Tick = 0
+	Event := state.EventNotifier
+	Battle := state.BattleNotifier
+	if Event.Tick > state.Cooldown {
+		if Event.Tick > 240 {
+			Event.Msg = nil
+			Event.Tick = 0
 		}
-		state.Event.Notified = true
+		Event.Notified = true
 	} else {
-		state.Event.Tick++
+		Event.Tick++
 	}
 
-	if state.Battle.Tick > state.Cooldown {
-		if state.Battle.Tick > 240 {
-			state.Battle.Msg = nil
-			state.Battle.Tick = 0
+	if Battle.Tick > state.Cooldown {
+		if Battle.Tick > 240 {
+			Battle.Msg = nil
+			Battle.Tick = 0
 		}
-		state.Battle.Notified = true
+		Battle.Notified = true
 	} else {
-		state.Battle.Tick++
+		Battle.Tick++
 	}
 }
 
@@ -66,7 +68,7 @@ func (state *Instance) notify(t int, message string) (err error) {
 		_, err = s.ChannelMessageSend(state.MainChan.ID, message)
 		return
 	case t&notifyBattle == notifyBattle:
-		state.Battle.Msg, err = s.ChannelMessageSend(state.MainChan.ID, message)
+		state.BattleNotifier.Msg, err = s.ChannelMessageSend(state.MainChan.ID, message)
 		return
 	default:
 		err = fmt.Errorf("unknown object(s) to notify")
